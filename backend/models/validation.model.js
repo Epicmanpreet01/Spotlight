@@ -195,3 +195,16 @@ export const validCloseGigSchema = {
     maxLength: 300,
   },
 };
+
+export const validReviewSchema = {
+  rating: {
+    type: "number",
+    min: 1,
+    max: 5,
+    required: true,
+  },
+  comment: {
+    type: "string",
+    maxLength: 500,
+  },
+};

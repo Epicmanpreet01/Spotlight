@@ -88,6 +88,31 @@ const PerformerProfileSchema = new Schema(
   { timestamps: true }
 );
 
+PerformerProfileSchema.statics.updateRating = async function (performerId) {
+  const Review = mongoose.model("Review");
+
+  const stats = await Review.aggregate([
+    { $match: { performer: performerId } },
+    {
+      $group: {
+        _id: "$performer",
+        averageRating: { $avg: "$rating" },
+        reviewCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const result = stats[0] || { averageRating: 0, reviewCount: 0 };
+
+  await this.findOneAndUpdate(
+    { user: performerId },
+    {
+      averageRating: result.averageRating,
+      reviewCount: result.reviewCount,
+    }
+  );
+};
+
 const PerformerProfile = model("PerformerProfile", PerformerProfileSchema);
 
 export default PerformerProfile;
