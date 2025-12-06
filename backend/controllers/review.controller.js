@@ -64,6 +64,14 @@ export const createReview = async (req, res) => {
     await PerformerProfile.updateRating(performerId);
 
     await session.commitTransaction();
+    await sendNotification(
+      performerId,
+      "review",
+      "New Review Received",
+      `${bookerName} left you a review`,
+      { performerId, bookingId }
+    );
+
     return res.status(200).json({
       success: true,
       message: "Review submitted",

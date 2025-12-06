@@ -1,23 +1,19 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose from "mongoose";
 
 export const NOTIFICATION_TYPES = [
-  "gig_application",
-  "gig_closed",
-  "gig_updated",
   "booking_request",
-  "booking_accepted",
-  "booking_declined",
-  "booking_cancelled",
-  "payment_required",
-  "payment_success",
-  "review_received",
-  "system",
+  "booking_update",
+  "payment",
+  "gig_application",
+  "gig_update",
+  "review",
+  "chat_message",
 ];
 
-const NotificationSchema = new Schema(
+const NotificationSchema = new mongoose.Schema(
   {
     user: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
@@ -29,17 +25,10 @@ const NotificationSchema = new Schema(
       required: true,
     },
 
-    title: {
-      type: String,
-      required: true,
-    },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
 
-    message: {
-      type: String,
-      required: true,
-    },
-
-    metadata: {
+    meta: {
       type: Object,
       default: {},
     },
@@ -52,7 +41,5 @@ const NotificationSchema = new Schema(
   { timestamps: true }
 );
 
-NotificationSchema.index({ user: 1, read: 1 });
-
-const Notification = model("Notification", NotificationSchema);
+const Notification = mongoose.model("Notification", NotificationSchema);
 export default Notification;

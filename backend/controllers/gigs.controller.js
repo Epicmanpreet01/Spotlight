@@ -5,6 +5,7 @@ import {
   validateLocation,
 } from "../utils/preprocessing_validation.utils.js";
 import User from "../models/user.model.js";
+import { sendNotification } from "../services/notification.service.js";
 
 export const getGigs = async (req, res) => {
   const rawFilters = req.cleanedQuery || {};
@@ -420,6 +421,14 @@ export const applyToGig = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    await sendNotification(
+      gig.postedBy,
+      "gig_application",
+      "New Gig Application",
+      `${performerName} applied to your gig '${gig.title}'`,
+      { gigId }
+    );
+
     return res.status(200).json({
       success: true,
       message: "Applied to gig successfully",
@@ -560,6 +569,16 @@ export const closeGig = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    for (const applicant of gig.applicants) {
+      await sendNotification(
+        applicant.performer,
+        "gig_update",
+        "Gig Closed",
+        `The gig '${gig.title}' has been closed`,
+        { gigId }
+      );
+    }
 
     return res.status(200).json({
       success: true,

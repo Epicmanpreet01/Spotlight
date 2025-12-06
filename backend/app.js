@@ -9,6 +9,7 @@ import performersRouter from "./routes/performers.routes.js";
 import gigsRouter from "./routes/gigs.routes.js";
 import bookingRouter from "./routes/booking.routes.js";
 import userRouter from "./routes/user.routes.js";
+import reviewRouter from "./routes/review.routes.js";
 
 dotenv.config();
 const app = express();
@@ -37,6 +38,8 @@ app.use("/api/performers", performersRouter);
 app.use("/api/gigs", gigsRouter);
 app.use("/api/booking", bookingRouter);
 app.use("/api/user", userRouter);
+app.use("/api/notifications", notificationRouter);
+app.use("/api/reviews", reviewRouter);
 
 app.listen(PORT, async () => {
   try {
