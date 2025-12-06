@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Review from "../models/review.model.js";
 import Booking from "../models/booking.model.js";
 import PerformerProfile from "../models/performerProfile.model.js";
+import User from "../models/user.model.js";
 
 export const createReview = async (req, res) => {
   const session = await mongoose.startSession();
@@ -63,6 +64,8 @@ export const createReview = async (req, res) => {
     // update stats
     await PerformerProfile.updateRating(performerId);
 
+    const bookerName =
+      user.name || (await User.findById(user._id).select("name")).name;
     await session.commitTransaction();
     await sendNotification(
       performerId,

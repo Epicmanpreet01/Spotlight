@@ -1,59 +1,79 @@
+// controllers/booking.controller.js
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import Booking from "../models/booking.model.js";
 import User from "../models/user.model.js";
 import PerformerProfile from "../models/performerProfile.model.js";
+import BookerProfile from "../models/bookerProfile.model.js";
 import { ensureChatForBooking } from "../utils/chat.utils.js";
-import { sendNotification } from "../utils/notification.utils.js"; // implement after
+import { sendNotification } from "../utils/notification.utils.js";
+import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
 
-//------------------------------------------------------
-// CREATE BOOKING (Booker → Performer)
-//------------------------------------------------------
+// create booking (booker → performer)
 export const createBooking = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   const { user } = req;
-  if (user.role !== "booker")
-    return res.status(403).json({ success: false, error: "Not allowed" });
-
   const { performerId, eventDate, durationHours, totalPrice } = req.cleanedBody;
 
+  if (user.role !== "booker") {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(403).json({ success: false, error: "Not allowed" });
+  }
+
   try {
-    const performer = await User.findById(performerId);
+    // Validate performer
+    const performer = await User.findById(performerId).session(session);
     if (!performer || performer.role !== "performer") {
       await session.abortTransaction();
+      session.endSession();
       return res
         .status(404)
         .json({ success: false, error: "Performer not found" });
     }
 
-    const event = new Date(eventDate);
-    if (isNaN(event))
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid event date" });
+    // Validate event date range
+    let start, end;
+    try {
+      const parsed = validateDateRange(eventDate);
+      start = parsed.start;
+      end = parsed.end;
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, error: err.message });
+    }
 
-    // Check date conflict for performer
+    // Conflict check: overlap formula
     const conflict = await Booking.findOne({
       performer: performerId,
-      eventDate: event,
       status: { $in: ["pending", "accepted", "confirmed"] },
-    });
+      $or: [
+        {
+          "eventDate.start": { $lt: end },
+          "eventDate.end": { $gt: start },
+        },
+      ],
+    }).session(session);
 
     if (conflict) {
       await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
-        error: "Performer is already booked for this timeslot",
+        error: "Performer is already booked for this time range",
       });
     }
 
+    // Create booking
     const [booking] = await Booking.create(
       [
         {
           booker: user._id,
           performer: performerId,
-          eventDate: event,
+          eventDate: { start, end },
           durationHours: durationHours || 1,
           totalPrice,
           status: "pending",
@@ -62,16 +82,33 @@ export const createBooking = async (req, res) => {
       { session }
     );
 
+    // Update performer profile bookings array
+    await PerformerProfile.updateOne(
+      { user: performerId },
+      { $addToSet: { bookings: booking._id } },
+      { session }
+    );
+
+    // Optional: maintain booker booking list if needed
+    await BookerProfile.updateOne(
+      { user: user._id },
+      { $addToSet: { gigs: booking._id } },
+      { session }
+    ).catch(() => {}); // ignore if bookers don't track bookings
+
     await session.commitTransaction();
     session.endSession();
 
-    // notify performer
-    sendNotification({
+    // Notify performer
+    const bookerName =
+      user.name || (await User.findById(user._id).select("name")).name;
+
+    await sendNotification({
       userId: performerId,
-      type: "BOOKING_REQUEST",
-      title: "New booking request",
-      message: "A booker has requested you for an event.",
-      data: { bookingId: booking._id },
+      type: "booking_request",
+      title: "New Booking Request",
+      message: `${bookerName} has requested to book you for an event.`,
+      meta: { bookingId: booking._id },
     });
 
     return res.status(200).json({
@@ -87,9 +124,7 @@ export const createBooking = async (req, res) => {
   }
 };
 
-//------------------------------------------------------
-// ACCEPT BOOKING (Performer)
-//------------------------------------------------------
+// accept booking (performer)
 export const acceptBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -116,25 +151,29 @@ export const acceptBooking = async (req, res) => {
     booking.status = "accepted";
     await booking.save();
 
-    sendNotification({
+    const performerName =
+      user.name || (await User.findById(user._id).select("name")).name;
+
+    await sendNotification({
       userId: booking.booker,
-      type: "BOOKING_ACCEPTED",
-      title: "Booking accepted",
-      message: "The performer accepted your booking. Please confirm by paying.",
-      data: { bookingId: booking._id },
+      type: "booking_update",
+      title: "Booking Accepted",
+      message: `${performerName} accepted your booking request. Please confirm by paying.`,
+      meta: { bookingId: booking._id },
     });
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Booking accepted", data: booking });
+    return res.status(200).json({
+      success: true,
+      message: "Booking accepted",
+      data: booking,
+    });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-//------------------------------------------------------
-// DECLINE BOOKING (Performer)
-//------------------------------------------------------
+// decline booking (performer)
 export const declineBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -156,23 +195,28 @@ export const declineBooking = async (req, res) => {
     booking.status = "declined";
     await booking.save();
 
-    sendNotification({
+    const performerName =
+      user.name || (await User.findById(user._id).select("name")).name;
+
+    await sendNotification({
       userId: booking.booker,
-      type: "BOOKING_DECLINED",
-      title: "Booking declined",
-      message: "The performer declined your booking.",
-      data: { bookingId: booking._id },
+      type: "booking_update",
+      title: "Booking Declined",
+      message: `${performerName} declined your booking request.`,
+      meta: { bookingId: booking._id },
     });
 
-    return res.status(200).json({ success: true, message: "Booking declined" });
+    return res.status(200).json({
+      success: true,
+      message: "Booking declined",
+    });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-//------------------------------------------------------
-// CONFIRM BOOKING (Booker → Payment)
-//------------------------------------------------------
+// confirm booking (booker)
 export const confirmBooking = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -180,44 +224,62 @@ export const confirmBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
 
-  if (user.role !== "booker")
+  if (user.role !== "booker") {
+    await session.abortTransaction();
+    session.endSession();
     return res
       .status(403)
       .json({ success: false, error: "Only booker allowed" });
+  }
 
   try {
     const booking = await Booking.findById(id).session(session);
 
-    if (!booking)
+    if (!booking) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ success: false, error: "Not found" });
+    }
 
-    if (booking.booker.toString() !== user._id)
+    if (booking.booker.toString() !== user._id) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(403)
         .json({ success: false, error: "Not your booking" });
+    }
 
-    if (booking.status !== "accepted")
+    if (booking.status !== "accepted") {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({ success: false, error: "Not accepted yet" });
+    }
 
-    // Payment logic would be here...
     booking.status = "confirmed";
     booking.paymentStatus = "escrow_held";
-    await booking.save({ session });
 
-    // create chat once confirmed
+    // Create chat
     const chat = await ensureChatForBooking(booking, session);
+    booking.chatId = chat._id;
 
+    await booking.save({ session });
     await session.commitTransaction();
     session.endSession();
 
-    sendNotification({
+    const performerName = (
+      await User.findById(booking.performer).select("name")
+    )?.name;
+
+    const bookerName = user.name;
+
+    await sendNotification({
       userId: booking.performer,
-      type: "BOOKING_CONFIRMED",
-      title: "Booking confirmed",
-      message: "The booker has confirmed & paid for the booking.",
-      data: { bookingId: booking._id },
+      type: "booking_confirmed",
+      title: "Booking Confirmed",
+      message: `${bookerName} confirmed and paid for the booking.`,
+      meta: { bookingId: booking._id },
     });
 
     return res.status(200).json({
@@ -226,15 +288,14 @@ export const confirmBooking = async (req, res) => {
       data: { booking, chat },
     });
   } catch (error) {
+    console.error(error);
     await session.abortTransaction();
     session.endSession();
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-//------------------------------------------------------
-// COMPLETE BOOKING (Performer → enters OTP)
-//------------------------------------------------------
+// complete booking (performer)
 export const completeBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -261,28 +322,28 @@ export const completeBooking = async (req, res) => {
         .json({ success: false, error: "Incorrect completion code" });
 
     booking.status = "completed";
-    booking.paymentStatus = "released"; // payout released to performer
+    booking.paymentStatus = "released";
     await booking.save();
 
-    sendNotification({
+    await sendNotification({
       userId: booking.booker,
-      type: "BOOKING_COMPLETED",
-      title: "Booking completed",
+      type: "booking_update",
+      title: "Booking Completed",
       message: "The performer has completed the event.",
-      data: { bookingId: booking._id },
+      meta: { bookingId: booking._id },
     });
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Booking completed" });
+    return res.status(200).json({
+      success: true,
+      message: "Booking completed",
+    });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-//------------------------------------------------------
-// CANCEL BOOKING (Either)
-//------------------------------------------------------
+// cancel booking (either party)
 export const cancelBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -299,35 +360,40 @@ export const cancelBooking = async (req, res) => {
     if (!isBooker && !isPerformer)
       return res.status(403).json({ success: false, error: "Unauthorized" });
 
-    if (booking.status === "confirmed")
+    // Cancellation rule — disallow if confirmed (refund logic required)
+    if (booking.status === "confirmed") {
       return res.status(400).json({
         success: false,
-        error: "Cannot cancel confirmed bookings (refund logic needed)",
+        error: "Cannot cancel confirmed bookings without refund logic",
       });
+    }
 
     booking.status = "cancelled";
     await booking.save();
 
-    const notifyUser = isBooker ? booking.performer : booking.booker;
-    sendNotification({
-      userId: notifyUser,
-      type: "BOOKING_CANCELLED",
-      title: "Booking cancelled",
-      message: "The booking has been cancelled.",
-      data: { bookingId: booking._id },
+    const targetUser = isBooker ? booking.performer : booking.booker;
+
+    const name = user.name;
+
+    await sendNotification({
+      userId: targetUser,
+      type: "booking_update",
+      title: "Booking Cancelled",
+      message: `${name} cancelled the booking.`,
+      meta: { bookingId: booking._id },
     });
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Booking cancelled" });
+    return res.status(200).json({
+      success: true,
+      message: "Booking cancelled",
+    });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-//------------------------------------------------------
-// GET USER BOOKINGS
-//------------------------------------------------------
+// get all bookings of current user
 export const getMyBookings = async (req, res) => {
   const { user } = req;
 
@@ -344,6 +410,7 @@ export const getMyBookings = async (req, res) => {
       data: bookings,
     });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };

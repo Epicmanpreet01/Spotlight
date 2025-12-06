@@ -421,6 +421,8 @@ export const applyToGig = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    const performerName =
+      req.user.name || (await User.findById(req.user._id).select("name")).name;
     await sendNotification(
       gig.postedBy,
       "gig_application",

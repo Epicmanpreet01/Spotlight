@@ -19,7 +19,16 @@ const BookingSchema = new Schema(
       default: null,
     },
 
-    eventDate: { type: Date, required: true },
+    eventDate: {
+      start: {
+        type: Date,
+        required: true,
+      },
+      end: {
+        type: Date,
+        required: true,
+      },
+    },
     durationHours: { type: Number, default: 1 },
 
     totalPrice: { type: Number, required: true },

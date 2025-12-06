@@ -13,6 +13,7 @@ import bookingRouter from "./routes/booking.routes.js";
 import userRouter from "./routes/user.routes.js";
 import reviewRouter from "./routes/review.routes.js";
 import chatRouter from "./routes/chat.routes.js";
+import notificationRouter from "./routes/notification.routes.js";
 
 import initChatSocket from "./socket/chat.socket.js";
 
@@ -51,7 +52,7 @@ const httpServer = createServer(app);
 
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.CLIENT_ORIGIN || "*", // tighten later
+    origin: process.env.CLIENT_ORIGIN || "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
