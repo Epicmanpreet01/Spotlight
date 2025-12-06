@@ -1,8 +1,9 @@
+// models/chat.model.js
 import mongoose, { Schema, model } from "mongoose";
 
 const ChatSchema = new Schema(
   {
-    participants: [
+    members: [
       {
         type: Schema.Types.ObjectId,
         ref: "User",
@@ -10,25 +11,29 @@ const ChatSchema = new Schema(
       },
     ],
 
-    // Last message preview for faster chat list retrieval
-    lastMessage: {
-      text: { type: String },
-      sender: { type: Schema.Types.ObjectId, ref: "User" },
-      timestamp: { type: Date },
-    },
-
-    // If chat is linked to a booking
+    // one chat per confirmed booking
     booking: {
       type: Schema.Types.ObjectId,
       ref: "Booking",
-      default: null,
+      required: true,
+      unique: true,
     },
+
+    lastMessage: {
+      type: Schema.Types.ObjectId,
+      ref: "Message",
+    },
+
+    // unread counts per user
+    unreadCounts: [
+      {
+        user: { type: Schema.Types.ObjectId, ref: "User" },
+        count: { type: Number, default: 0 },
+      },
+    ],
   },
   { timestamps: true }
 );
-
-// Index for fast querying of user chats
-ChatSchema.index({ participants: 1 });
 
 const Chat = model("Chat", ChatSchema);
 export default Chat;

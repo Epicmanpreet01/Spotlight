@@ -208,3 +208,10 @@ export const validReviewSchema = {
     maxLength: 500,
   },
 };
+
+export const validBookingCreateSchema = {
+  performerId: { type: "string", required: true },
+  eventDate: { type: "string", required: true },
+  durationHours: { type: "number", min: 1 },
+  totalPrice: { type: "number", min: 1 },
+};

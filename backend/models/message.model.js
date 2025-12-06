@@ -1,3 +1,4 @@
+// models/message.model.js
 import mongoose, { Schema, model } from "mongoose";
 
 const MessageSchema = new Schema(
@@ -6,6 +7,7 @@ const MessageSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Chat",
       required: true,
+      index: true,
     },
 
     sender: {
@@ -17,18 +19,20 @@ const MessageSchema = new Schema(
     text: {
       type: String,
       required: true,
+      trim: true,
+      maxlength: 2000,
     },
 
-    // future support for attachments
-    attachment: {
-      publicUrl: String,
-      type: String, // "image", "video", etc.
-    },
+    // simple read-tracking
+    readBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
-
-MessageSchema.index({ chat: 1, createdAt: -1 });
 
 const Message = model("Message", MessageSchema);
 export default Message;

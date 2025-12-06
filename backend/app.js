@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import connectDb from "./config/db.js";
 import { v2 as cloudinary } from "cloudinary";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 import authRouter from "./routes/auth.routes.js";
 import performersRouter from "./routes/performers.routes.js";
@@ -10,6 +12,9 @@ import gigsRouter from "./routes/gigs.routes.js";
 import bookingRouter from "./routes/booking.routes.js";
 import userRouter from "./routes/user.routes.js";
 import reviewRouter from "./routes/review.routes.js";
+import chatRouter from "./routes/chat.routes.js";
+
+import initChatSocket from "./socket/chat.socket.js";
 
 dotenv.config();
 const app = express();
@@ -40,8 +45,21 @@ app.use("/api/booking", bookingRouter);
 app.use("/api/user", userRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/reviews", reviewRouter);
+app.use("/api/chat", chatRouter);
 
-app.listen(PORT, async () => {
+const httpServer = createServer(app);
+
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.CLIENT_ORIGIN || "*", // tighten later
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+initChatSocket(io);
+
+httpServer.listen(PORT, async () => {
   try {
     const host = await connectDb(MONGO_URI);
     console.log(`Server started successfully on: ${PORT}`);
