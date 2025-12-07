@@ -283,6 +283,18 @@ export const updateGig = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    if (gig.applicants.length > 0) {
+      for (const applicant of gig.applicants) {
+        await sendNotification(req.io, {
+          userId: applicant.performer,
+          type: "gig_update",
+          title: "Gig Updated",
+          message: `The gig '${gig.title}' has been updated.`,
+          meta: { gigId },
+        });
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Gig updated successfully",
@@ -339,6 +351,16 @@ export const deleteGig = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    for (const applicant of gig.applicants) {
+      await sendNotification(req.io, {
+        userId: applicant.performer,
+        type: "gig_update",
+        title: "Gig Deleted",
+        message: `The gig '${gig.title}' has been deleted by the booker.`,
+        meta: { gigId },
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -423,13 +445,13 @@ export const applyToGig = async (req, res) => {
 
     const performerName =
       req.user.name || (await User.findById(req.user._id).select("name")).name;
-    await sendNotification(
-      gig.postedBy,
-      "gig_application",
-      "New Gig Application",
-      `${performerName} applied to your gig '${gig.title}'`,
-      { gigId }
-    );
+    await sendNotification(req.io, {
+      userId: gig.postedBy,
+      type: "gig_application",
+      title: "New Gig Application",
+      message: `${performerName} applied to your gig.`,
+      meta: { gigId: gig._id },
+    });
 
     return res.status(200).json({
       success: true,
@@ -573,13 +595,13 @@ export const closeGig = async (req, res) => {
     session.endSession();
 
     for (const applicant of gig.applicants) {
-      await sendNotification(
-        applicant.performer,
-        "gig_update",
-        "Gig Closed",
-        `The gig '${gig.title}' has been closed`,
-        { gigId }
-      );
+      await sendNotification(req.io, {
+        userId: applicant.performer,
+        type: "gig_update",
+        title: "Gig Closed",
+        message: `The gig '${gig.title}' has been closed.`,
+        meta: { gigId },
+      });
     }
 
     return res.status(200).json({

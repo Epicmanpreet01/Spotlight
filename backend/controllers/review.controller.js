@@ -3,6 +3,7 @@ import Review from "../models/review.model.js";
 import Booking from "../models/booking.model.js";
 import PerformerProfile from "../models/performerProfile.model.js";
 import User from "../models/user.model.js";
+import { sendNotification } from "../services/notification.service.js";
 
 export const createReview = async (req, res) => {
   const session = await mongoose.startSession();
@@ -66,14 +67,15 @@ export const createReview = async (req, res) => {
 
     const bookerName =
       user.name || (await User.findById(user._id).select("name")).name;
+
     await session.commitTransaction();
-    await sendNotification(
-      performerId,
-      "review",
-      "New Review Received",
-      `${bookerName} left you a review`,
-      { performerId, bookingId }
-    );
+    await sendNotification(req.io, {
+      userId: performerId,
+      type: "review",
+      title: "New Review Received",
+      message: `${bookerName} left you a review.`,
+      meta: { bookingId },
+    });
 
     return res.status(200).json({
       success: true,

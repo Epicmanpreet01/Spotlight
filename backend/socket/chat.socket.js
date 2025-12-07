@@ -2,7 +2,6 @@
 import jwt from "jsonwebtoken";
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
-import Booking from "../models/booking.model.js";
 import { bumpUnreadCounts } from "../utils/chat.utils.js";
 
 export default function initChatSocket(io) {

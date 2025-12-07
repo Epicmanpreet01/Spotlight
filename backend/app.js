@@ -32,6 +32,10 @@ cloudinary.config({
 app.use(express.json());
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 app.get("/api/health", (req, res) => {
   return res

@@ -103,11 +103,11 @@ export const createBooking = async (req, res) => {
     const bookerName =
       user.name || (await User.findById(user._id).select("name")).name;
 
-    await sendNotification({
+    await sendNotification(req.io, {
       userId: performerId,
       type: "booking_request",
       title: "New Booking Request",
-      message: `${bookerName} has requested to book you for an event.`,
+      message: `${bookerName} sent you a booking request.`,
       meta: { bookingId: booking._id },
     });
 
@@ -154,11 +154,11 @@ export const acceptBooking = async (req, res) => {
     const performerName =
       user.name || (await User.findById(user._id).select("name")).name;
 
-    await sendNotification({
+    await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
       title: "Booking Accepted",
-      message: `${performerName} accepted your booking request. Please confirm by paying.`,
+      message: `${performerName} accepted your booking.`,
       meta: { bookingId: booking._id },
     });
 
@@ -198,11 +198,11 @@ export const declineBooking = async (req, res) => {
     const performerName =
       user.name || (await User.findById(user._id).select("name")).name;
 
-    await sendNotification({
+    await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
       title: "Booking Declined",
-      message: `${performerName} declined your booking request.`,
+      message: `${performerName} declined your booking.`,
       meta: { bookingId: booking._id },
     });
 
@@ -268,17 +268,11 @@ export const confirmBooking = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    const performerName = (
-      await User.findById(booking.performer).select("name")
-    )?.name;
-
-    const bookerName = user.name;
-
-    await sendNotification({
+    await sendNotification(req.io, {
       userId: booking.performer,
-      type: "booking_confirmed",
+      type: "payment",
       title: "Booking Confirmed",
-      message: `${bookerName} confirmed and paid for the booking.`,
+      message: "Payment secured — your event is confirmed.",
       meta: { bookingId: booking._id },
     });
 
@@ -325,11 +319,11 @@ export const completeBooking = async (req, res) => {
     booking.paymentStatus = "released";
     await booking.save();
 
-    await sendNotification({
+    await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
-      title: "Booking Completed",
-      message: "The performer has completed the event.",
+      title: "Event Completed",
+      message: "Your performer has marked the event as completed.",
       meta: { bookingId: booking._id },
     });
 
@@ -375,8 +369,8 @@ export const cancelBooking = async (req, res) => {
 
     const name = user.name;
 
-    await sendNotification({
-      userId: targetUser,
+    await sendNotification(req.io, {
+      userId: targetUser.name,
       type: "booking_update",
       title: "Booking Cancelled",
       message: `${name} cancelled the booking.`,
