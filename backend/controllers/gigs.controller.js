@@ -7,6 +7,11 @@ import {
 import User from "../models/user.model.js";
 import PerformerProfile from "../models/performerProfile.model.js";
 import { sendNotification } from "../services/notification.service.js";
+import {
+  uploadToCloudinary,
+  getPublicIdFromUrl,
+} from "../utils/image.utils.js";
+import { v2 as cloudinary } from "cloudinary";
 
 export const getGigs = async (req, res) => {
   const rawFilters = req.cleanedQuery || {};
@@ -152,23 +157,18 @@ export const createGig = async (req, res) => {
   const { title, description, eventDate, location, budget, categoryRequired } =
     req.cleanedBody;
 
-  if (
-    !title ||
-    !description ||
-    !eventDate ||
-    !location ||
-    !budget ||
-    !categoryRequired
-  ) {
+  if (!req.file) {
     await session.abortTransaction();
     session.endSession();
     return res.status(400).json({
       success: false,
-      error: "Required fields cannot be empty",
+      error: "Preview image is required",
     });
   }
 
   try {
+    const previewImageUrl = await uploadToCloudinary(req.file, "gigs_preview");
+
     const { lng, lat } = validateLocation(location);
     const loc = {
       type: "Point",
@@ -184,6 +184,7 @@ export const createGig = async (req, res) => {
           postedBy: user._id,
           title,
           description,
+          previewImage: previewImageUrl, // 👈 save uploaded URL
           eventDate: { start, end },
           location: loc,
           budget,
@@ -203,12 +204,13 @@ export const createGig = async (req, res) => {
       data: gig,
     });
   } catch (error) {
-    console.error(`Error creating gig:`, error);
+    console.error("Error creating gig:", error);
     await session.abortTransaction();
     session.endSession();
-    return res
-      .status(500)
-      .json({ success: false, error: "Internal server error" });
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
   }
 };
 
@@ -244,20 +246,27 @@ export const updateGig = async (req, res) => {
       });
     }
 
+    const hasApplicants = gig.applicants.length > 0;
+
+    // --------------------------------------------------
+    // PROTECT SENSITIVE FIELDS IF APPLICANTS EXIST
+    // --------------------------------------------------
     if (
-      gig.applicants.length > 0 &&
-      (updateBody.location || updateBody.eventDate)
+      hasApplicants &&
+      (updateBody.location || updateBody.eventDate || req.file)
     ) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Can not change sensitive data" });
+      return res.status(400).json({
+        success: false,
+        error:
+          "Cannot change location, event date or preview image after applicants exist",
+      });
     }
 
+    // --------------------------------------------------
+    // UPDATE LOCATION
+    // --------------------------------------------------
     if (updateBody.location) {
       const { lng, lat } = validateLocation(updateBody.location);
-      if (!updateBody.location.address)
-        throw new Error("Location address is required");
-
       gig.location = {
         type: "Point",
         coordinates: [lng, lat],
@@ -265,11 +274,43 @@ export const updateGig = async (req, res) => {
       };
     }
 
+    // --------------------------------------------------
+    // UPDATE EVENT DATE
+    // --------------------------------------------------
     if (updateBody.eventDate) {
       const { start, end } = validateDateRange(updateBody.eventDate);
       gig.eventDate = { start, end };
     }
 
+    // --------------------------------------------------
+    // PREVIEW IMAGE UPDATE (DELETE OLD + UPLOAD NEW)
+    // --------------------------------------------------
+    if (req.file) {
+      const oldImageUrl = gig.previewImage;
+      const newUrl = await uploadToCloudinary(req.file, "gigs_preview");
+
+      // Update model first
+      gig.previewImage = newUrl;
+
+      // Delete old image AFTER update succeeds (safe cleanup)
+      if (oldImageUrl) {
+        const publicId = getPublicIdFromUrl(oldImageUrl);
+        if (publicId) {
+          Promise.allSettled([
+            cloudinary.uploader.destroy(publicId, { resource_type: "image" }),
+          ]).then((results) => {
+            const { status, reason } = results[0];
+            if (status === "rejected") {
+              console.error("Cloudinary deletion failed:", reason);
+            }
+          });
+        }
+      }
+    }
+
+    // --------------------------------------------------
+    // BASIC FIELD UPDATES
+    // --------------------------------------------------
     gig.title = updateBody.title ?? gig.title;
     gig.description = updateBody.description ?? gig.description;
     gig.categoryRequired = updateBody.categoryRequired ?? gig.categoryRequired;
@@ -284,7 +325,10 @@ export const updateGig = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    if (gig.applicants.length > 0) {
+    // --------------------------------------------------
+    // NOTIFY APPLICANTS
+    // --------------------------------------------------
+    if (hasApplicants) {
       for (const applicant of gig.applicants) {
         await sendNotification(req.io, {
           userId: applicant.performer,
@@ -302,7 +346,7 @@ export const updateGig = async (req, res) => {
       data: updatedGig,
     });
   } catch (error) {
-    console.error(`Error updating gig:`, error);
+    console.error("Error updating gig:", error);
     await session.abortTransaction();
     session.endSession();
     return res
@@ -342,17 +386,36 @@ export const deleteGig = async (req, res) => {
       });
     }
 
+    // ------------------------------------------
+    // 1. Delete preview image from Cloudinary
+    // ------------------------------------------
+    if (gig.previewImage) {
+      const publicId = getPublicIdFromUrl(gig.previewImage);
+      if (publicId) {
+        await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+      }
+    }
+
+    // ------------------------------------------
+    // 2. Remove gig from performer profiles
+    // ------------------------------------------
     await PerformerProfile.updateMany(
       { appliedGigs: gigId },
       { $pull: { appliedGigs: gigId } },
       { session }
     );
 
+    // ------------------------------------------
+    // 3. Delete Gig
+    // ------------------------------------------
     await Gig.findByIdAndDelete(gigId, { session });
 
     await session.commitTransaction();
     session.endSession();
 
+    // ------------------------------------------
+    // 4. Notify applicants
+    // ------------------------------------------
     for (const applicant of gig.applicants) {
       await sendNotification(req.io, {
         userId: applicant.performer,

@@ -18,6 +18,8 @@ import {
   deleteGig,
 } from "../controllers/gigs.controller.js";
 
+import upload from "../middleware/upload.middleware.js";
+
 const router = Router();
 
 router.get(
@@ -34,6 +36,7 @@ router.post(
   "/create",
   authenticate,
   authorize(["booker"]),
+  upload.single("previewImage"),
   validateInput(validGigSchema),
   createGig
 );
@@ -42,6 +45,7 @@ router.put(
   "/update/:gigId",
   authenticate,
   authorize(["booker"]),
+  upload.single("previewImage"),
   validateInput(validGigSchema),
   updateGig
 );

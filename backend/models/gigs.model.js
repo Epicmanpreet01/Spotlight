@@ -7,28 +7,27 @@ const GigSchema = new Schema(
       ref: "User",
       required: true,
     },
+
     title: { type: String, required: true },
     description: { type: String, required: true },
 
-    eventDate: {
-      start: {
-        type: Date,
-        required: true,
-      },
-      end: {
-        type: Date,
-        required: true,
-      },
+    previewImage: {
+      type: String,
+      required: true,
     },
+
+    eventDate: {
+      start: { type: Date, required: true },
+      end: { type: Date, required: true },
+    },
+
     location: {
       type: { type: String, default: "Point" },
-      coordinates: [Number], // [longitude, latitude]
-      address: { type: String, required: true }, // The human readable string
+      coordinates: [Number],
+      address: { type: String, required: true },
     },
 
     budget: { type: Number, required: true },
-
-    // Matches "Performer Category" needed
     categoryRequired: { type: String, required: true },
 
     status: {
@@ -37,7 +36,6 @@ const GigSchema = new Schema(
       default: "open",
     },
 
-    // Array of Performer IDs who clicked "Apply"
     applicants: [
       {
         performer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
