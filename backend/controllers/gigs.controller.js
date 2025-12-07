@@ -13,6 +13,7 @@ import {
 } from "../utils/image.utils.js";
 import { v2 as cloudinary } from "cloudinary";
 
+// filters, geo search, name -> gig list
 export const getGigs = async (req, res) => {
   const rawFilters = req.cleanedQuery || {};
   const { user } = req;
@@ -116,6 +117,7 @@ export const getGigs = async (req, res) => {
   }
 };
 
+// id -> gig
 export const getGigById = async (req, res) => {
   const { user } = req;
   const { gigId } = req.params;
@@ -149,6 +151,7 @@ export const getGigById = async (req, res) => {
   }
 };
 
+// gig required fields -> gig
 export const createGig = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -214,6 +217,7 @@ export const createGig = async (req, res) => {
   }
 };
 
+// gig update body -> updated gig (notification)
 export const updateGig = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -355,6 +359,7 @@ export const updateGig = async (req, res) => {
   }
 };
 
+// id -> deleted gig (notification)
 export const deleteGig = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -440,6 +445,7 @@ export const deleteGig = async (req, res) => {
   }
 };
 
+// id -> apply to gig and update gig and performer profile (notification)
 export const applyToGig = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -531,6 +537,7 @@ export const applyToGig = async (req, res) => {
   }
 };
 
+// id -> withdraw, update gig and performer profile (notification)
 export const withdrawApplication = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -603,6 +610,7 @@ export const withdrawApplication = async (req, res) => {
   }
 };
 
+// id -> closegig, remove gig from applied gigs (notification)
 export const closeGig = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();

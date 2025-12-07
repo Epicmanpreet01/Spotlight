@@ -8,6 +8,7 @@ import {
 } from "../utils/image.utils.js";
 import { v2 as cloudinary } from "cloudinary";
 
+// filters, geo searching, name searching -> performer list
 export const getPerformers = async (req, res) => {
   const { user } = req;
   const rawFilters = req.cleanedQuery || {};
@@ -119,6 +120,7 @@ export const getPerformers = async (req, res) => {
   }
 };
 
+// id query -> performer
 export const getPerformerById = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -157,6 +159,7 @@ export const getPerformerById = async (req, res) => {
   }
 };
 
+// updation body -> updated profile
 export const updatePerformerProfile = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -229,6 +232,7 @@ export const updatePerformerProfile = async (req, res) => {
   }
 };
 
+// image list -> profile with updated gallery list
 export const addGalleryImages = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -303,6 +307,7 @@ export const addGalleryImages = async (req, res) => {
   }
 };
 
+// image to delete -> profile with updated gallery list
 export const removeGalleryImage = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();

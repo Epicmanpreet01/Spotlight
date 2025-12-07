@@ -13,7 +13,7 @@ function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
 }
 
-// create booking (booker → performer)
+// create booking (booker → performer) required fields -> created booking
 export const createBooking = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -135,7 +135,7 @@ export const createBooking = async (req, res) => {
   }
 };
 
-// accept booking (performer)
+// accept booking (performer) id -> updated booking
 export const acceptBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -184,7 +184,7 @@ export const acceptBooking = async (req, res) => {
   }
 };
 
-// decline booking (performer)
+// decline booking (performer) id -> updated booking
 export const declineBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -227,7 +227,7 @@ export const declineBooking = async (req, res) => {
   }
 };
 
-// confirm booking (booker)
+// confirm booking (booker) id -> confirmed booking and chat and otp (ONLY FOR DEVELOPMENT)
 export const confirmBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -299,7 +299,7 @@ export const confirmBooking = async (req, res) => {
   }
 };
 
-// complete booking (performer)
+// complete booking (performer) id -> completed booking
 export const completeBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -374,7 +374,7 @@ export const completeBooking = async (req, res) => {
   }
 };
 
-// cancel booking (either party)
+// cancel booking (either party) id -> updated booking
 export const cancelBooking = async (req, res) => {
   const { user } = req;
   const { id } = req.params;
@@ -424,7 +424,7 @@ export const cancelBooking = async (req, res) => {
   }
 };
 
-// get all bookings of current user
+// get all bookings of current user id -> get all bookings of current user
 export const getMyBookings = async (req, res) => {
   const { user } = req;
 

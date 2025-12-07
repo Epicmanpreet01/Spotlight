@@ -8,6 +8,7 @@ import {
   uploadToCloudinary,
 } from "../utils/image.utils.js";
 
+// update body -> updated profile
 export const updateUserProfile = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -133,6 +134,7 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
+// new image -> updated profile
 export const updateProfileImage = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -202,6 +204,7 @@ export const updateProfileImage = async (req, res) => {
   }
 };
 
+// remove image -> updated profile
 export const deleteProfileImage = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
