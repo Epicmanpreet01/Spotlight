@@ -2,7 +2,6 @@
 import mongoose from "mongoose";
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
-import Booking from "../models/booking.model.js";
 import { resetUnreadForUser, bumpUnreadCounts } from "../utils/chat.utils.js";
 
 /**

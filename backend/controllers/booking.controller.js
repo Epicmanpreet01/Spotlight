@@ -6,7 +6,7 @@ import User from "../models/user.model.js";
 import PerformerProfile from "../models/performerProfile.model.js";
 import BookerProfile from "../models/bookerProfile.model.js";
 import { ensureChatForBooking } from "../utils/chat.utils.js";
-import { sendNotification } from "../utils/notification.utils.js";
+import { sendNotification } from "../services/notification.service.js";
 import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
 
 function generateOtp() {
@@ -381,7 +381,7 @@ export const cancelBooking = async (req, res) => {
     const name = user.name;
 
     await sendNotification(req.io, {
-      userId: targetUser.name,
+      userId: targetUser._id,
       type: "booking_update",
       title: "Booking Cancelled",
       message: `${name} cancelled the booking.`,
