@@ -19,7 +19,7 @@ export const createBooking = async (req, res) => {
   session.startTransaction();
 
   const { user } = req;
-  const { performerId, eventDate, durationHours, totalPrice } = req.cleanedBody;
+  const { performerId, eventDate, totalPrice } = req.cleanedBody;
 
   if (user.role !== "booker") {
     await session.abortTransaction();
@@ -50,6 +50,13 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, error: err.message });
     }
 
+    // AUTO CALCULATE DURATION
+    let durationMs = end - start;
+    let durationHours = durationMs / (1000 * 60 * 60);
+
+    // round to nearest 0.5 hour if needed
+    durationHours = Math.max(1, Math.round(durationHours * 2) / 2);
+
     // Conflict check: overlap formula
     const conflict = await Booking.findOne({
       performer: performerId,
@@ -78,7 +85,7 @@ export const createBooking = async (req, res) => {
           booker: user._id,
           performer: performerId,
           eventDate: { start, end },
-          durationHours: durationHours || 1,
+          durationHours, // ← auto-calculated!
           totalPrice,
           status: "pending",
         },
@@ -98,7 +105,7 @@ export const createBooking = async (req, res) => {
       { user: user._id },
       { $addToSet: { gigs: booking._id } },
       { session }
-    ).catch(() => {}); // ignore if bookers don't track bookings
+    ).catch(() => {});
 
     await session.commitTransaction();
     session.endSession();
@@ -247,21 +254,22 @@ export const confirmBooking = async (req, res) => {
         .status(400)
         .json({ success: false, error: "Not accepted yet" });
 
-    const otp = generateOtp(); // 6-digit string
+    // 1️⃣ Generate OTP
+    const otp = generateOtp();
     const hashedOtp = await bcrypt.hash(otp, 10);
 
     booking.completionCode = hashedOtp;
-
     booking.status = "confirmed";
     booking.paymentStatus = "escrow_held";
 
     await booking.save();
 
+    // 2️⃣ Ensure chat exists
     const chat = await ensureChatForBooking(booking);
-
     booking.chatId = chat._id;
     await booking.save();
 
+    // 3️⃣ Send notifications
     await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
@@ -278,9 +286,11 @@ export const confirmBooking = async (req, res) => {
       meta: { bookingId: booking._id },
     });
 
+    // 4️⃣ Return OTP in JSON (for testing)
     return res.status(200).json({
       success: true,
       message: "Booking confirmed successfully",
+      confirmationCode: otp, // ← Added!
       data: { booking, chat },
     });
   } catch (error) {
@@ -310,16 +320,32 @@ export const completeBooking = async (req, res) => {
 
     if (booking.status !== "confirmed")
       return res.status(400).json({ success: false, error: "Not confirmed" });
-
-    // If OTP system is kept:
-    if (booking.completionCode) {
-      const isValid = await bcrypt.compare(code, booking.completionCode);
-      if (!isValid)
-        return res.status(400).json({
-          success: false,
-          error: "Incorrect completion code",
-        });
+    console.log("DEBUG OTP:", { code, stored: booking.completionCode });
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: "Completion code is required",
+      });
     }
+
+    if (!booking.completionCode) {
+      return res.status(400).json({
+        success: false,
+        error: "No completion code set for this booking",
+      });
+    }
+
+    const isValid = await bcrypt.compare(String(code), booking.completionCode);
+    if (!isValid)
+      if (booking.completionCode) {
+        // If OTP system is kept:
+        const isValid = await bcrypt.compare(code, booking.completionCode);
+        if (!isValid)
+          return res.status(400).json({
+            success: false,
+            error: "Incorrect completion code",
+          });
+      }
 
     // Complete booking (no payout)
     booking.status = "completed";

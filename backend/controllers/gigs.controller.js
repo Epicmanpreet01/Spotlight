@@ -5,6 +5,7 @@ import {
   validateLocation,
 } from "../utils/preprocessing_validation.utils.js";
 import User from "../models/user.model.js";
+import PerformerProfile from "../models/performerProfile.model.js";
 import { sendNotification } from "../services/notification.service.js";
 
 export const getGigs = async (req, res) => {

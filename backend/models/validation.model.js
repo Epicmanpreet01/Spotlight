@@ -212,6 +212,5 @@ export const validReviewSchema = {
 export const validBookingCreateSchema = {
   performerId: { type: "string", required: true },
   eventDate: { type: "object", required: true },
-  durationHours: { type: "number", min: 1 },
   totalPrice: { type: "number", min: 1 },
 };
