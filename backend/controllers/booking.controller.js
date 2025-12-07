@@ -247,26 +247,21 @@ export const confirmBooking = async (req, res) => {
         .status(400)
         .json({ success: false, error: "Not accepted yet" });
 
-    // 1️⃣ Generate + Hash OTP
     const otp = generateOtp(); // 6-digit string
     const hashedOtp = await bcrypt.hash(otp, 10);
 
-    // 2️⃣ Save OTP on booking
     booking.completionCode = hashedOtp;
 
-    // 3️⃣ Direct confirm (no payment)
     booking.status = "confirmed";
     booking.paymentStatus = "escrow_held";
 
     await booking.save();
 
-    // 4️⃣ Create chat
     const chat = await ensureChatForBooking(booking);
 
     booking.chatId = chat._id;
     await booking.save();
 
-    // 5️⃣ Send OTP to booker
     await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
@@ -275,7 +270,6 @@ export const confirmBooking = async (req, res) => {
       meta: { bookingId: booking._id },
     });
 
-    // 6️⃣ Notify performer of confirmation
     await sendNotification(req.io, {
       userId: booking.performer,
       type: "booking_update",
