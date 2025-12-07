@@ -84,6 +84,11 @@ const PerformerProfileSchema = new Schema(
       required: true,
       default: [],
     },
+    bankDetails: {
+      accountNumber: String,
+      ifsc: String,
+      upiId: String,
+    },
   },
   { timestamps: true }
 );

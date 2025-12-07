@@ -47,9 +47,9 @@ const BookingSchema = new Schema(
       default: "pending",
     },
     completionCode: { type: String, select: false }, // The 4-6 digit OTP (Hashed in DB)
-    platformFee: Number, // Your cut (e.g., 10%)
-    performerPayout: Number, // The remaining 90%
-    cancellationDeadline: Date, // e.g., Event Date - 24 hours
+    platformFee: Number,
+    performerPayout: Number,
+    cancellationDeadline: Date,
     chatId: { type: mongoose.Schema.Types.ObjectId, ref: "Chat" },
     paymentStatus: {
       type: String,

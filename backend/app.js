@@ -29,6 +29,18 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const httpServer = createServer(app);
+
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.CLIENT_ORIGIN || "*",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+initChatSocket(io);
+
 app.use(express.json());
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
@@ -51,18 +63,6 @@ app.use("/api/user", userRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/chat", chatRouter);
-
-const httpServer = createServer(app);
-
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: process.env.CLIENT_ORIGIN || "*",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
-
-initChatSocket(io);
 
 httpServer.listen(PORT, async () => {
   try {

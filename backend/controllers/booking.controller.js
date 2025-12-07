@@ -9,6 +9,10 @@ import { ensureChatForBooking } from "../utils/chat.utils.js";
 import { sendNotification } from "../utils/notification.utils.js";
 import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
 
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+}
+
 // create booking (booker → performer)
 export const createBooking = async (req, res) => {
   const session = await mongoose.startSession();
@@ -218,73 +222,75 @@ export const declineBooking = async (req, res) => {
 
 // confirm booking (booker)
 export const confirmBooking = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   const { user } = req;
   const { id } = req.params;
 
   if (user.role !== "booker") {
-    await session.abortTransaction();
-    session.endSession();
     return res
       .status(403)
       .json({ success: false, error: "Only booker allowed" });
   }
 
   try {
-    const booking = await Booking.findById(id).session(session);
+    const booking = await Booking.findById(id);
 
-    if (!booking) {
-      await session.abortTransaction();
-      session.endSession();
+    if (!booking)
       return res.status(404).json({ success: false, error: "Not found" });
-    }
 
-    if (booking.booker.toString() !== user._id) {
-      await session.abortTransaction();
-      session.endSession();
+    if (booking.booker.toString() !== user._id.toString())
       return res
         .status(403)
         .json({ success: false, error: "Not your booking" });
-    }
 
-    if (booking.status !== "accepted") {
-      await session.abortTransaction();
-      session.endSession();
+    if (booking.status !== "accepted")
       return res
         .status(400)
         .json({ success: false, error: "Not accepted yet" });
-    }
 
+    // 1️⃣ Generate + Hash OTP
+    const otp = generateOtp(); // 6-digit string
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    // 2️⃣ Save OTP on booking
+    booking.completionCode = hashedOtp;
+
+    // 3️⃣ Direct confirm (no payment)
     booking.status = "confirmed";
     booking.paymentStatus = "escrow_held";
 
-    // Create chat
-    const chat = await ensureChatForBooking(booking, session);
+    await booking.save();
+
+    // 4️⃣ Create chat
+    const chat = await ensureChatForBooking(booking);
+
     booking.chatId = chat._id;
+    await booking.save();
 
-    await booking.save({ session });
-    await session.commitTransaction();
-    session.endSession();
+    // 5️⃣ Send OTP to booker
+    await sendNotification(req.io, {
+      userId: booking.booker,
+      type: "booking_update",
+      title: "Booking Confirmed",
+      message: `Your booking has been confirmed.\nYour event completion OTP is: ${otp}`,
+      meta: { bookingId: booking._id },
+    });
 
+    // 6️⃣ Notify performer of confirmation
     await sendNotification(req.io, {
       userId: booking.performer,
-      type: "payment",
+      type: "booking_update",
       title: "Booking Confirmed",
-      message: "Payment secured — your event is confirmed.",
+      message: `Booker has confirmed this booking.`,
       meta: { bookingId: booking._id },
     });
 
     return res.status(200).json({
       success: true,
-      message: "Booking confirmed",
+      message: "Booking confirmed successfully",
       data: { booking, chat },
     });
   } catch (error) {
-    console.error(error);
-    await session.abortTransaction();
-    session.endSession();
+    console.error("confirmBooking error:", error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
@@ -296,12 +302,14 @@ export const completeBooking = async (req, res) => {
   const { code } = req.body;
 
   try {
-    const booking = await Booking.findById(id).select("+completionCode");
+    const booking = await Booking.findById(id)
+      .select("+completionCode")
+      .populate("performer", "name email");
 
     if (!booking)
       return res.status(404).json({ success: false, error: "Not found" });
 
-    if (booking.performer.toString() !== user._id)
+    if (booking.performer._id.toString() !== user._id.toString())
       return res
         .status(403)
         .json({ success: false, error: "Not your booking" });
@@ -309,31 +317,40 @@ export const completeBooking = async (req, res) => {
     if (booking.status !== "confirmed")
       return res.status(400).json({ success: false, error: "Not confirmed" });
 
-    const match = await bcrypt.compare(code, booking.completionCode);
-    if (!match)
-      return res
-        .status(400)
-        .json({ success: false, error: "Incorrect completion code" });
+    // If OTP system is kept:
+    if (booking.completionCode) {
+      const isValid = await bcrypt.compare(code, booking.completionCode);
+      if (!isValid)
+        return res.status(400).json({
+          success: false,
+          error: "Incorrect completion code",
+        });
+    }
 
+    // Complete booking (no payout)
     booking.status = "completed";
-    booking.paymentStatus = "released";
+    booking.paymentStatus = "released"; // simulate release
     await booking.save();
 
     await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
       title: "Event Completed",
-      message: "Your performer has marked the event as completed.",
+      message: "Your performer has completed the event.",
       meta: { bookingId: booking._id },
     });
 
     return res.status(200).json({
       success: true,
-      message: "Booking completed",
+      message: "Booking completed successfully (no payout in beta mode)",
+      data: booking,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, error: "Server error" });
+    console.error("Complete booking error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Could not complete booking",
+    });
   }
 };
 
