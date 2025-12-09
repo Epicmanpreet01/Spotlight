@@ -19,14 +19,6 @@ export const validSignupSchema = {
     regex: PASSWORD_REGEX,
     required: true,
   },
-  location: {
-    type: "object",
-    required: true,
-  },
-  city: {
-    type: "string",
-    required: true,
-  },
   role: {
     type: "string",
     enum: ["performer", "booker"],

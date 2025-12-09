@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
-import PerformerProfile from "../models/performerProfile.model.js";
+import PerformerProfile, {
+  DEFAULT_CITY,
+  DEFAULT_COORDS,
+} from "../models/user.model.js";
 import User from "../models/user.model.js";
 import { sanitizeVideoLink } from "../utils/preprocessing_validation.utils.js";
 import {
@@ -43,7 +46,13 @@ export const getPerformers = async (req, res) => {
     }
 
     // Geo search...
-    if (userProfile?.location?.coordinates?.length === 2) {
+    if (
+      !(
+        userProfile?.location?.coordinates.every(
+          (val, i) => val === DEFAULT_COORDS[i]
+        ) && userProfile?.city === DEFAULT_CITY
+      )
+    ) {
       const [lng, lat] = userProfile.location.coordinates;
       const radiusKm = Number(filters.radius) || 25;
       delete mongoQuery.radius;

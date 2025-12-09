@@ -5,7 +5,6 @@ import connectDb from "./config/db.js";
 import { v2 as cloudinary } from "cloudinary";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import cors from "cors";
 
 import authRouter from "./routes/auth.routes.js";
 import performersRouter from "./routes/performers.routes.js";
@@ -49,12 +48,6 @@ app.use((req, res, next) => {
   req.io = io;
   next();
 });
-app.use(
-  cors({
-    origin: "*",
-    credentials: true,
-  })
-);
 
 app.get("/api/health", (req, res) => {
   return res
@@ -71,7 +64,7 @@ app.use("/api/notifications", notificationRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/chat", chatRouter);
 
-httpServer.listen(PORT, async () => {
+httpServer.listen(PORT, "0.0.0.0", async () => {
   try {
     const host = await connectDb(MONGO_URI);
     console.log(`Server started successfully on: ${PORT}`);

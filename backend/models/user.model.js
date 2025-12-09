@@ -1,5 +1,8 @@
 import mongoose, { Schema, model } from "mongoose";
 
+export const DEFAULT_COORDS = [0, 0];
+export const DEFAULT_CITY = "";
+
 const UserSchema = new Schema(
   {
     name: {
@@ -33,7 +36,7 @@ const UserSchema = new Schema(
       default: "",
     },
 
-    city: { type: String, required: true },
+    city: { type: String, default: "" },
 
     location: {
       type: {
@@ -43,7 +46,7 @@ const UserSchema = new Schema(
       },
       coordinates: {
         type: [Number],
-        required: true,
+        default: [0, 0],
       },
     },
 

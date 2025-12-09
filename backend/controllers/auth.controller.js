@@ -2,7 +2,6 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { validateLocation } from "../utils/preprocessing_validation.utils.js";
 import PerformerProfile from "../models/performerProfile.model.js";
 import BookerProfile from "../models/bookerProfile.model.js";
 
@@ -26,24 +25,15 @@ export const signup = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  const {
-    name,
-    email,
-    password,
-    role,
-    location,
-    city,
-    category,
-    priceStartingAt,
-    type,
-  } = req.cleanedBody;
+  const { name, email, password, role, category, priceStartingAt, type } =
+    req.cleanedBody;
 
-  if (!name || !email || !password || !role || !location || !city) {
+  if (!name || !email || !password || !role) {
     await session.abortTransaction();
     session.endSession();
     return res.status(400).json({
       success: false,
-      error: "Name, email, password, role, city and location are required",
+      error: "Name, email, password, role are required",
     });
   }
 
@@ -66,16 +56,6 @@ export const signup = async (req, res) => {
   }
 
   try {
-    // location valdation
-    const { lng, lat } = validateLocation(location);
-    const validLocation = {
-      type: "Point",
-      coordinates: [lng, lat],
-    };
-
-    if (city === "")
-      return res.status(400).json({ success: false, error: "Invalid city" });
-
     // Check if email exists
     const emailExists = await User.findOne({ email }).session(session);
     if (emailExists) {
@@ -97,8 +77,6 @@ export const signup = async (req, res) => {
           email,
           password: hashedPassword,
           role,
-          location: validLocation,
-          city,
         },
       ],
       { session }

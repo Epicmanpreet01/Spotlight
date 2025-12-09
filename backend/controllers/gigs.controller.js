@@ -4,7 +4,7 @@ import {
   validateDateRange,
   validateLocation,
 } from "../utils/preprocessing_validation.utils.js";
-import User from "../models/user.model.js";
+import User, { DEFAULT_CITY, DEFAULT_COORDS } from "../models/user.model.js";
 import PerformerProfile from "../models/performerProfile.model.js";
 import { sendNotification } from "../services/notification.service.js";
 import {
@@ -62,7 +62,11 @@ export const getGigs = async (req, res) => {
     const hasLocation =
       userProfile.location &&
       Array.isArray(userProfile.location.coordinates) &&
-      userProfile.location.coordinates.length === 2;
+      !(
+        userProfile.location.coordinates.every(
+          (val, i) => val === DEFAULT_COORDS[(0, 0)][i]
+        ) && userProfile.city === DEFAULT_CITY
+      );
 
     if (hasLocation) {
       const [lng, lat] = userProfile.location.coordinates;

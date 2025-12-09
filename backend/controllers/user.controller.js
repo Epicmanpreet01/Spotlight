@@ -7,6 +7,7 @@ import {
   getPublicIdFromUrl,
   uploadToCloudinary,
 } from "../utils/image.utils.js";
+import { DEFAULT_COORDS } from "../models/user.model.js";
 
 // update body -> updated profile
 export const updateUserProfile = async (req, res) => {
@@ -41,7 +42,10 @@ export const updateUserProfile = async (req, res) => {
     if (updateBody.location && updateBody.city) {
       const { lng, lat } = validateLocation(updateBody.location);
 
-      if (updateBody.city === "")
+      if (
+        updateBody.city === "" &&
+        ![lng, lat].every((val, i) => val === DEFAULT_COORDS[i])
+      )
         return res
           .status(400)
           .json({ success: false, error: "City can not be empty string" });
