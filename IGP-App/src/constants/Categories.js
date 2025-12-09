@@ -1,0 +1,17 @@
+export const PERFORMER_CATEGORIES = [
+  "Singer",
+  "Music Band",
+  "DJ",
+  "Instrumentalist",
+  "Dancer",
+  "Comedian",
+  "Magician",
+  "Anchor/Emcee",
+  "Model",
+  "Poet/Storyteller",
+  "Motivational Speaker",
+  "Mimicry Artist",
+  "Traditional/Folk Artist",
+  "Rapper/Beatboxer",
+  "Circus Act",
+];
