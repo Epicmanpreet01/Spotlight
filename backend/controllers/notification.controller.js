@@ -23,8 +23,8 @@ export const markAsRead = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const notif = await Notification.findByIdAndUpdate(
-      id,
+    const notif = await Notification.findOneAndUpdate(
+      { _id: id, user: req.user._id },
       { read: true },
       { new: true }
     );
@@ -68,7 +68,17 @@ export const deleteNotification = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await Notification.findByIdAndDelete(id);
+    const deleted = await Notification.findOneAndDelete({
+      _id: id,
+      user: req.user._id,
+    });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: "Notification not found",
+      });
+    }
 
     return res.status(200).json({
       success: true,
