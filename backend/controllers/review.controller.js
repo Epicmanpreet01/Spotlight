@@ -173,6 +173,13 @@ export const deleteReview = async (req, res) => {
 export const getReviewsForPerformer = async (req, res) => {
   const { performerId } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(performerId)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid performer id",
+    });
+  }
+
   try {
     const reviews = await Review.find({ performer: performerId })
       .populate("booker", "name profileImage")

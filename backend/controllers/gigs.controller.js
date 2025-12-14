@@ -33,7 +33,7 @@ export const getGigs = async (req, res) => {
   }
 
   try {
-    const userProfile = await User.findById(user._id).select("location");
+    const userProfile = await User.findById(user._id).select("location city");
 
     if (!userProfile) {
       return res.status(404).json({
@@ -43,7 +43,7 @@ export const getGigs = async (req, res) => {
     }
 
     // take pagination out of filters
-    const { page: pageRaw, limit: limitRaw, ...filters } = rawFilters;
+    const { page: pageRaw, limit: limitRaw, radius, ...filters } = rawFilters;
 
     // date filter
     if (filters.eventDate) {
@@ -65,13 +65,12 @@ export const getGigs = async (req, res) => {
       Array.isArray(userProfile.location.coordinates) &&
       !(
         userProfile.location.coordinates.every(
-          (val, i) => val === DEFAULT_COORDS[(0, 0)][i]
+          (val, i) => val === DEFAULT_COORDS[i]
         ) && userProfile.city === DEFAULT_CITY
       );
-
     if (hasLocation) {
       const [lng, lat] = userProfile.location.coordinates;
-      const radiusKm = Number(filters.radius) || 25;
+      const radiusKm = Number(radius) || 25;
       delete filters.radius;
 
       geoQuery = {
@@ -252,7 +251,7 @@ export const updateGig = async (req, res) => {
       return res.status(404).json({ success: false, error: "Gig not found" });
     }
 
-    if (gig.postedBy.toString() !== user._id) {
+    if (gig.postedBy.toString() !== user._id.toString()) {
       await session.abortTransaction();
       session.endSession();
       return res.status(403).json({
@@ -401,10 +400,6 @@ export const deleteGig = async (req, res) => {
         error: "Only the poster can delete this gig",
       });
     }
-
-    // ------------------------------------------
-    // 1. Delete preview image from Cloudinary
-    // ------------------------------------------
     if (gig.previewImage) {
       const publicId = getPublicIdFromUrl(gig.previewImage);
       if (publicId) {
@@ -412,26 +407,23 @@ export const deleteGig = async (req, res) => {
       }
     }
 
-    // ------------------------------------------
-    // 2. Remove gig from performer profiles
-    // ------------------------------------------
     await PerformerProfile.updateMany(
       { appliedGigs: gigId },
       { $pull: { appliedGigs: gigId } },
       { session }
     );
 
-    // ------------------------------------------
-    // 3. Delete Gig
-    // ------------------------------------------
+    await BookerProfile.updateOne(
+      { user: user._id },
+      { $pull: { gigs: gigId } },
+      { session }
+    );
+
     await Gig.findByIdAndDelete(gigId, { session });
 
     await session.commitTransaction();
     session.endSession();
 
-    // ------------------------------------------
-    // 4. Notify applicants
-    // ------------------------------------------
     for (const applicant of gig.applicants) {
       await sendNotification(req.io, {
         userId: applicant.performer,

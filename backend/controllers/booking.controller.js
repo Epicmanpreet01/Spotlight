@@ -36,9 +36,6 @@ export const createBooking = async (req, res) => {
   }
 
   try {
-    // -------------------------
-    // Validate performer
-    // -------------------------
     const performer = await User.findById(performerId).session(session);
     if (!performer || performer.role !== "performer") {
       await session.abortTransaction();
@@ -48,9 +45,6 @@ export const createBooking = async (req, res) => {
         .json({ success: false, error: "Performer not found" });
     }
 
-    // -------------------------
-    // Validate gig
-    // -------------------------
     const gig = await Gig.findById(gigId).session(session);
     if (!gig) {
       await session.abortTransaction();
@@ -58,8 +52,7 @@ export const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, error: "Gig not found" });
     }
 
-    // Ensure gig belongs to this booker
-    if (gig.booker.toString() !== user._id.toString()) {
+    if (gig.postedBy.toString() !== user._id.toString()) {
       await session.abortTransaction();
       session.endSession();
       return res.status(403).json({
@@ -68,9 +61,8 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    // Ensure performer is valid for this gig
     const isApplicant = gig.applicants?.some(
-      (id) => id.toString() === performerId.toString()
+      (a) => a.performer.toString() === performerId.toString()
     );
 
     if (!isApplicant && source === "applicant") {
@@ -82,9 +74,6 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    // -------------------------
-    // Validate date range
-    // -------------------------
     let start, end;
     try {
       const parsed = validateDateRange(eventDate);
@@ -100,9 +89,6 @@ export const createBooking = async (req, res) => {
     let durationHours = durationMs / (1000 * 60 * 60);
     durationHours = Math.max(1, Math.round(durationHours * 2) / 2);
 
-    // -------------------------
-    // Conflict check
-    // -------------------------
     const conflict = await Booking.findOne({
       performer: performerId,
       status: { $in: ["pending", "accepted", "confirmed"] },
@@ -119,20 +105,14 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    // -------------------------
-    // Booking status logic
-    // -------------------------
     const bookingStatus = source === "applicant" ? "accepted" : "pending";
 
-    // -------------------------
-    // Create booking
-    // -------------------------
     const [booking] = await Booking.create(
       [
         {
           booker: user._id,
           performer: performerId,
-          gig: gigId, // ✅ ATTACHED
+          gig: gigId,
           eventDate: { start, end },
           durationHours,
           totalPrice,
@@ -142,9 +122,6 @@ export const createBooking = async (req, res) => {
       { session }
     );
 
-    // -------------------------
-    // Link booking to profiles
-    // -------------------------
     await PerformerProfile.updateOne(
       { user: performerId },
       { $addToSet: { bookings: booking._id } },
@@ -157,28 +134,9 @@ export const createBooking = async (req, res) => {
       { session }
     );
 
-    // -------------------------
-    // If applicant accepted → update gig
-    // -------------------------
-    if (source === "applicant") {
-      await Gig.updateOne(
-        { _id: gigId },
-        {
-          $set: {
-            selectedPerformer: performerId,
-            status: "booked",
-          },
-        },
-        { session }
-      );
-    }
-
     await session.commitTransaction();
     session.endSession();
 
-    // -------------------------
-    // Notification
-    // -------------------------
     const bookerName =
       user.name || (await User.findById(user._id).select("name")).name;
 
@@ -281,6 +239,13 @@ export const declineBooking = async (req, res) => {
         .status(403)
         .json({ success: false, error: "Not your booking" });
 
+    if (booking.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        error: "Only pending bookings can be declined",
+      });
+    }
+
     booking.status = "declined";
     await booking.save();
 
@@ -332,7 +297,6 @@ export const confirmBooking = async (req, res) => {
         .status(400)
         .json({ success: false, error: "Not accepted yet" });
 
-    // 1️⃣ Generate OTP
     const otp = generateOtp();
     const hashedOtp = await bcrypt.hash(otp, 10);
 
@@ -342,12 +306,10 @@ export const confirmBooking = async (req, res) => {
 
     await booking.save();
 
-    // 2️⃣ Ensure chat exists
-    const chat = await ensureChatForBooking(booking);
+    const chat = await ensureChatForBooking(booking, null);
     booking.chatId = chat._id;
     await booking.save();
 
-    // 3️⃣ Send notifications
     await sendNotification(req.io, {
       userId: booking.booker,
       type: "booking_update",
@@ -364,11 +326,10 @@ export const confirmBooking = async (req, res) => {
       meta: { bookingId: booking._id },
     });
 
-    // 4️⃣ Return OTP in JSON (for testing)
     return res.status(200).json({
       success: true,
       message: "Booking confirmed successfully",
-      confirmationCode: otp, // ← Added!
+      confirmationCode: otp,
       data: { booking, chat },
     });
   } catch (error) {
@@ -414,16 +375,13 @@ export const completeBooking = async (req, res) => {
     }
 
     const isValid = await bcrypt.compare(String(code), booking.completionCode);
-    if (!isValid)
-      if (booking.completionCode) {
-        // If OTP system is kept:
-        const isValid = await bcrypt.compare(code, booking.completionCode);
-        if (!isValid)
-          return res.status(400).json({
-            success: false,
-            error: "Incorrect completion code",
-          });
-      }
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        error: "Incorrect completion code",
+      });
+    }
 
     // Complete booking (no payout)
     booking.status = "completed";
@@ -480,12 +438,12 @@ export const cancelBooking = async (req, res) => {
     booking.status = "cancelled";
     await booking.save();
 
-    const targetUser = isBooker ? booking.performer : booking.booker;
+    const targetUserId = isBooker ? booking.performer : booking.booker;
 
     const name = user.name;
 
     await sendNotification(req.io, {
-      userId: targetUser._id,
+      userId: targetUserId,
       type: "booking_update",
       title: "Booking Cancelled",
       message: `${name} cancelled the booking.`,
