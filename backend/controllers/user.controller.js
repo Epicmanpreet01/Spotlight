@@ -45,10 +45,14 @@ export const updateUserProfile = async (req, res) => {
       if (
         updateBody.city === "" &&
         ![lng, lat].every((val, i) => val === DEFAULT_COORDS[i])
-      )
-        return res
-          .status(400)
-          .json({ success: false, error: "City can not be empty string" });
+      ) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          error: "City cannot be empty string",
+        });
+      }
 
       updateDoc.location = {
         type: "Point",
@@ -68,7 +72,9 @@ export const updateUserProfile = async (req, res) => {
         });
       }
 
-      const dbUser = await User.findById(user._id).session(session);
+      const dbUser = await User.findById(user._id)
+        .select("+password")
+        .session(session);
 
       if (!dbUser) {
         await session.abortTransaction();

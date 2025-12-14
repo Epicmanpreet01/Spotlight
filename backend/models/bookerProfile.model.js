@@ -14,6 +14,12 @@ const BookerProfileSchema = new Schema(
       ref: "Gig",
       default: [],
     },
+
+    bookings: {
+      type: [mongoose.Types.ObjectId],
+      ref: "Booking",
+      default: [],
+    },
   },
   {
     timestamps: true,

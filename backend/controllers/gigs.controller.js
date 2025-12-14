@@ -12,6 +12,7 @@ import {
   getPublicIdFromUrl,
 } from "../utils/image.utils.js";
 import { v2 as cloudinary } from "cloudinary";
+import BookerProfile from "../models/bookerProfile.model.js";
 
 // filters, geo search, name -> gig list
 export const getGigs = async (req, res) => {
@@ -200,6 +201,12 @@ export const createGig = async (req, res) => {
         },
       ],
       { session }
+    );
+
+    const updated = await BookerProfile.findOneAndUpdate(
+      { user: user._id },
+      { $push: { gigs: gig._id } },
+      { session: session }
     );
 
     await session.commitTransaction();

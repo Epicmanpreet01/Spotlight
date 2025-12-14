@@ -12,7 +12,7 @@ const BookingSchema = new Schema(
       ref: "User",
       required: true,
     },
-    // If this booking came from a Public Gig, link it here
+
     gig: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Gig",

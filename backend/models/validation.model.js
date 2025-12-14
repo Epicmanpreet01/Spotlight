@@ -203,6 +203,16 @@ export const validReviewSchema = {
 
 export const validBookingCreateSchema = {
   performerId: { type: "string", required: true },
+
+  gigId: { type: "string", required: true },
+
   eventDate: { type: "object", required: true },
+
   totalPrice: { type: "number", min: 1 },
+
+  source: {
+    type: "string",
+    enum: ["direct", "applicant"],
+    required: false,
+  },
 };

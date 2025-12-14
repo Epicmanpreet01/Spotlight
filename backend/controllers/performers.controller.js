@@ -1,9 +1,6 @@
 import mongoose from "mongoose";
-import PerformerProfile, {
-  DEFAULT_CITY,
-  DEFAULT_COORDS,
-} from "../models/user.model.js";
-import User from "../models/user.model.js";
+import User, { DEFAULT_CITY, DEFAULT_COORDS } from "../models/user.model.js";
+import PerformerProfile from "../models/performerProfile.model.js";
 import { sanitizeVideoLink } from "../utils/preprocessing_validation.utils.js";
 import {
   getPublicIdFromUrl,
@@ -47,6 +44,7 @@ export const getPerformers = async (req, res) => {
 
     // Geo search...
     if (
+      user &&
       !(
         userProfile?.location?.coordinates.every(
           (val, i) => val === DEFAULT_COORDS[i]

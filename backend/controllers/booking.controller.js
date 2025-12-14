@@ -8,6 +8,7 @@ import BookerProfile from "../models/bookerProfile.model.js";
 import { ensureChatForBooking } from "../utils/chat.utils.js";
 import { sendNotification } from "../services/notification.service.js";
 import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
+import Gig from "../models/gigs.model.js";
 
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
@@ -19,7 +20,14 @@ export const createBooking = async (req, res) => {
   session.startTransaction();
 
   const { user } = req;
-  const { performerId, eventDate, totalPrice } = req.cleanedBody;
+
+  const {
+    performerId,
+    gigId,
+    eventDate,
+    totalPrice,
+    source = "direct", // "direct" | "applicant"
+  } = req.cleanedBody;
 
   if (user.role !== "booker") {
     await session.abortTransaction();
@@ -28,7 +36,9 @@ export const createBooking = async (req, res) => {
   }
 
   try {
+    // -------------------------
     // Validate performer
+    // -------------------------
     const performer = await User.findById(performerId).session(session);
     if (!performer || performer.role !== "performer") {
       await session.abortTransaction();
@@ -38,7 +48,43 @@ export const createBooking = async (req, res) => {
         .json({ success: false, error: "Performer not found" });
     }
 
-    // Validate event date range
+    // -------------------------
+    // Validate gig
+    // -------------------------
+    const gig = await Gig.findById(gigId).session(session);
+    if (!gig) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, error: "Gig not found" });
+    }
+
+    // Ensure gig belongs to this booker
+    if (gig.booker.toString() !== user._id.toString()) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({
+        success: false,
+        error: "You are not allowed to book for this gig",
+      });
+    }
+
+    // Ensure performer is valid for this gig
+    const isApplicant = gig.applicants?.some(
+      (id) => id.toString() === performerId.toString()
+    );
+
+    if (!isApplicant && source === "applicant") {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        error: "Performer is not an applicant for this gig",
+      });
+    }
+
+    // -------------------------
+    // Validate date range
+    // -------------------------
     let start, end;
     try {
       const parsed = validateDateRange(eventDate);
@@ -50,23 +96,18 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, error: err.message });
     }
 
-    // AUTO CALCULATE DURATION
     let durationMs = end - start;
     let durationHours = durationMs / (1000 * 60 * 60);
-
-    // round to nearest 0.5 hour if needed
     durationHours = Math.max(1, Math.round(durationHours * 2) / 2);
 
-    // Conflict check: overlap formula
+    // -------------------------
+    // Conflict check
+    // -------------------------
     const conflict = await Booking.findOne({
       performer: performerId,
       status: { $in: ["pending", "accepted", "confirmed"] },
-      $or: [
-        {
-          "eventDate.start": { $lt: end },
-          "eventDate.end": { $gt: start },
-        },
-      ],
+      "eventDate.start": { $lt: end },
+      "eventDate.end": { $gt: start },
     }).session(session);
 
     if (conflict) {
@@ -78,53 +119,90 @@ export const createBooking = async (req, res) => {
       });
     }
 
+    // -------------------------
+    // Booking status logic
+    // -------------------------
+    const bookingStatus = source === "applicant" ? "accepted" : "pending";
+
+    // -------------------------
     // Create booking
+    // -------------------------
     const [booking] = await Booking.create(
       [
         {
           booker: user._id,
           performer: performerId,
+          gig: gigId, // ✅ ATTACHED
           eventDate: { start, end },
-          durationHours, // ← auto-calculated!
+          durationHours,
           totalPrice,
-          status: "pending",
+          status: bookingStatus,
         },
       ],
       { session }
     );
 
-    // Update performer profile bookings array
+    // -------------------------
+    // Link booking to profiles
+    // -------------------------
     await PerformerProfile.updateOne(
       { user: performerId },
       { $addToSet: { bookings: booking._id } },
       { session }
     );
 
-    // Optional: maintain booker booking list if needed
     await BookerProfile.updateOne(
       { user: user._id },
-      { $addToSet: { gigs: booking._id } },
+      { $addToSet: { bookings: booking._id } },
       { session }
-    ).catch(() => {});
+    );
+
+    // -------------------------
+    // If applicant accepted → update gig
+    // -------------------------
+    if (source === "applicant") {
+      await Gig.updateOne(
+        { _id: gigId },
+        {
+          $set: {
+            selectedPerformer: performerId,
+            status: "booked",
+          },
+        },
+        { session }
+      );
+    }
 
     await session.commitTransaction();
     session.endSession();
 
-    // Notify performer
+    // -------------------------
+    // Notification
+    // -------------------------
     const bookerName =
       user.name || (await User.findById(user._id).select("name")).name;
 
     await sendNotification(req.io, {
       userId: performerId,
-      type: "booking_request",
-      title: "New Booking Request",
-      message: `${bookerName} sent you a booking request.`,
-      meta: { bookingId: booking._id },
+      type:
+        bookingStatus === "accepted" ? "booking_accepted" : "booking_request",
+      title:
+        bookingStatus === "accepted"
+          ? "Booking Confirmed"
+          : "New Booking Request",
+      message:
+        bookingStatus === "accepted"
+          ? `${bookerName} confirmed your booking.`
+          : `${bookerName} sent you a booking request.`,
+      meta: { bookingId: booking._id, gigId },
     });
 
     return res.status(200).json({
       success: true,
-      message: "Booking request sent",
+      message:
+        bookingStatus === "accepted"
+          ? "Booking confirmed"
+          : "Booking request sent",
       data: booking,
     });
   } catch (error) {
