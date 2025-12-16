@@ -2,20 +2,16 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
 import { useTheme } from "../../context/ThemeContext";
-import { useNotifications } from "../../hooks/queries/useNotifications";
 
 export default function PerformerHomeHeader({
   user = {},
+  unreadCount = 0,
   onPressNotifications,
+  onPressLocation,
 }) {
   const router = useRouter();
   const { theme } = useTheme();
-
-  /* ===================== NOTIFICATIONS ===================== */
-  const { data: notifications = [] } = useNotifications();
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handlePressBell = () => {
     if (typeof onPressNotifications === "function") {
@@ -35,7 +31,12 @@ export default function PerformerHomeHeader({
             Hello, {user?.name ? user.name.split(" ")[0] : "Artist"}!
           </Text>
 
-          <View style={styles.locationRow}>
+          {/* LOCATION */}
+          <TouchableOpacity
+            style={styles.locationRow}
+            activeOpacity={0.7}
+            onPress={onPressLocation}
+          >
             <Ionicons
               name="location-outline"
               size={14}
@@ -49,7 +50,7 @@ export default function PerformerHomeHeader({
             >
               {user?.city || "Set your location"}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* NOTIFICATION BELL */}
@@ -68,7 +69,7 @@ export default function PerformerHomeHeader({
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {unreadCount > 99 ? "99+" : String(unreadCount)}
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </Text>
               </View>
             )}
@@ -80,20 +81,11 @@ export default function PerformerHomeHeader({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
+  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   row: { flexDirection: "row", alignItems: "center" },
   greeting: { fontSize: 24, fontWeight: "800" },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 6,
-  },
+  locationRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
   locationText: { marginLeft: 6, fontSize: 13 },
-
   bellWrap: { marginLeft: 12 },
   bellBg: {
     width: 44,
@@ -109,7 +101,6 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     minWidth: 18,
-    paddingHorizontal: 5,
     height: 18,
     borderRadius: 9,
     backgroundColor: "#FF3B30",

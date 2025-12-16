@@ -13,22 +13,26 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../src/context/ThemeContext";
 
+/* ===================== HOOKS ===================== */
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import { useGigsQuery } from "../../src/hooks/queries/useGigs";
 import { usePerformersQuery } from "../../src/hooks/queries/usePerformers";
 import { useNotifications } from "../../src/hooks/queries/useNotifications";
 import { useUpdateLocationMutation } from "../../src/hooks/mutations/useUpdateLocationMutation";
 
+/* ===================== COMPONENTS ===================== */
 import {
   NearbyGigsList,
   RecommendedGigsList,
   HomeEmptyState,
 } from "../../src/components/home";
 import LocationModal from "../../src/components/home/LocationModal";
+import PerformerHomeHeader from "../../src/components/home/PerformerHomeHeader";
 
 import BookerHomeHeader from "../../src/components/booker/home/BookerHomeHeader";
 import BookerNearbyList from "../../src/components/booker/home/BookerNearbyList";
 import BookerRecommendedList from "../../src/components/booker/home/BookerRecommendedList";
+import BookerLocationModal from "../../src/components/booker/home/BookerLocationModal";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -36,37 +40,49 @@ export default function HomeScreen() {
 
   const [isLocationModalOpen, setLocationModalOpen] = useState(false);
 
+  /* ===================== USER ===================== */
   const { data: userResp, isLoading: isAuthLoading } = useCurrentUser();
-  const user = userResp?.data || null;
-  const role = user?.role || null;
+  const user = userResp?.data ?? null;
+  const profile = userResp?.profile ?? null;
+  const role = user?.role ?? null;
+  const performerCategory = role === "performer" ? profile?.category : null;
 
+  /* ===================== NOTIFICATIONS ===================== */
   const { data: notifications = [] } = useNotifications();
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  /* ===================== GIGS (PERFORMER) ===================== */
   const {
     data: gigsResp,
     isLoading: gigsLoading,
     refetch: refetchGigs,
   } = useGigsQuery({}, role === "performer");
 
+  const { data: recommendedGigsResp } = useGigsQuery(
+    { requiredCategory: performerCategory },
+    role === "performer" && !!performerCategory
+  );
+
+  const gigs = gigsResp?.data || [];
+  const recommendedGigs = recommendedGigsResp?.data || [];
+  const nearbyGigs = gigs.slice(0, 7);
+
+  /* ===================== PERFORMERS (BOOKER) ===================== */
   const {
     data: performersResp,
     isLoading: perfLoading,
     refetch: refetchPerformers,
   } = usePerformersQuery({}, role === "booker");
 
-  const gigs = gigsResp?.data || [];
   const performers = performersResp?.data || [];
-
-  const nearbyGigs = gigs.slice(0, 7);
-  const recommendedGigs = gigs.slice(7, 12);
-
   const nearbyPerformers = performers.slice(0, 4);
   const recommendedPerformers = performers.slice(4);
 
+  /* ===================== LOCATION UPDATE ===================== */
   const { mutate: updateLocation } = useUpdateLocationMutation();
 
-  if (isAuthLoading) {
+  /* ===================== AUTH GUARD ===================== */
+  if (isAuthLoading || !role) {
     return (
       <SafeAreaView
         style={[
@@ -83,6 +99,7 @@ export default function HomeScreen() {
     );
   }
 
+  /* ===================== PERFORMER ===================== */
   if (role === "performer") {
     return (
       <SafeAreaView
@@ -94,64 +111,14 @@ export default function HomeScreen() {
           }
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          <View style={[styles.topRow, { paddingHorizontal: 20 }]}>
-            <View>
-              <Text style={[styles.greeting, { color: theme.colors.text }]}>
-                Hello, {user.name.split(" ")[0]}!
-              </Text>
+          <PerformerHomeHeader
+            user={user}
+            unreadCount={unreadCount}
+            onPressNotifications={() => router.push("/notifications")}
+            onPressLocation={() => setLocationModalOpen(true)}
+          />
 
-              <TouchableOpacity
-                onPress={() => setLocationModalOpen(true)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginTop: 6,
-                }}
-              >
-                <Ionicons
-                  name="location-outline"
-                  size={14}
-                  color={theme.colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.locationText,
-                    { color: theme.colors.textSecondary, marginLeft: 6 },
-                  ]}
-                >
-                  {user.city || "Set your location"}
-                </Text>
-                <Ionicons
-                  name="pencil"
-                  size={14}
-                  color={theme.colors.textSecondary}
-                  style={{ marginLeft: 6 }}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => router.push("/notifications")}
-              style={styles.notifBtn}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color={theme.colors.text}
-              />
-              {unreadCount > 0 && (
-                <View
-                  style={[
-                    styles.badge,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
-                >
-                  <Text style={styles.badgeText}>{unreadCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
+          {/* NEARBY GIGS */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Nearby Gigs
@@ -164,26 +131,31 @@ export default function HomeScreen() {
           </View>
 
           {gigs.length === 0 ? (
-            <HomeEmptyState />
+            <HomeEmptyState message="No nearby gigs available right now." />
           ) : (
             <NearbyGigsList items={nearbyGigs} />
           )}
 
+          {/* RECOMMENDED */}
           <View style={[styles.sectionHeader, { marginTop: 24 }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Recommended
             </Text>
           </View>
 
-          <RecommendedGigsList items={recommendedGigs} />
+          {recommendedGigs.length === 0 ? (
+            <HomeEmptyState message="No recommended gigs for your category yet." />
+          ) : (
+            <RecommendedGigsList items={recommendedGigs} />
+          )}
         </ScrollView>
 
         <LocationModal
           visible={isLocationModalOpen}
           initialCity={user.city || ""}
           onClose={() => setLocationModalOpen(false)}
-          onSave={({ cityState }) => {
-            updateLocation({ city: cityState });
+          onSave={({ city, location }) => {
+            updateLocation({ city, location });
             setLocationModalOpen(false);
           }}
         />
@@ -191,6 +163,7 @@ export default function HomeScreen() {
     );
   }
 
+  /* ===================== BOOKER ===================== */
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -204,8 +177,14 @@ export default function HomeScreen() {
         }
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <BookerHomeHeader user={user} unreadCount={unreadCount} />
+        <BookerHomeHeader
+          user={user}
+          unreadCount={unreadCount}
+          onPressNotifications={() => router.push("/notifications")}
+          onPressLocation={() => setLocationModalOpen(true)}
+        />
 
+        {/* NEARBY PERFORMERS */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Nearby Performers
@@ -219,6 +198,7 @@ export default function HomeScreen() {
 
         <BookerNearbyList performers={nearbyPerformers} />
 
+        {/* RECOMMENDED */}
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Recommended
@@ -235,41 +215,23 @@ export default function HomeScreen() {
       >
         <Ionicons name="add" size={32} color="#fff" />
       </TouchableOpacity>
+
+      <BookerLocationModal
+        visible={isLocationModalOpen}
+        initialCity={user.city || ""}
+        onClose={() => setLocationModalOpen(false)}
+        onSave={({ city, location }) => {
+          updateLocation({ city, location });
+          setLocationModalOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
+/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topRow: {
-    paddingTop: 20,
-    paddingBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  greeting: { fontSize: 24, fontWeight: "700" },
-  locationText: { fontSize: 13 },
-  notifBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  badge: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

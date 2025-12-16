@@ -1,3 +1,4 @@
+// src/utils/detectLocation.js
 import * as Location from "expo-location";
 import Toast from "react-native-toast-message";
 
@@ -8,7 +9,7 @@ export const detectLocation = async () => {
       Toast.show({
         type: "error",
         text1: "Permission Required",
-        text2: "Location permission is needed to your city",
+        text2: "Location permission is needed to detect your city",
       });
       return null;
     }
@@ -24,22 +25,19 @@ export const detectLocation = async () => {
       longitude,
     });
 
-    if (geo && geo.length > 0) {
-      const place = geo[0];
-      const formatted = `${place.name || ""} ${place.street || ""}, ${
-        place.city || place.subregion || ""
-      }, ${place.region || ""}`.trim();
+    if (!geo?.length) return null;
 
-      return {
-        address: formatted,
-        city: place.city || place.subregion || "",
+    const place = geo[0];
+
+    return {
+      address: `${place.name || ""} ${place.street || ""}`.trim(),
+      city: place.city || place.subregion || "",
+      location: {
+        type: "Point",
         coordinates: [longitude, latitude],
-      };
-    }
-
-    return null;
+      },
+    };
   } catch (e) {
-    console.log("Location Error:", e);
     Toast.show({
       type: "error",
       text1: "Error",

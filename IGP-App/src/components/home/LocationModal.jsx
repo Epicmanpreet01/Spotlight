@@ -13,7 +13,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 
-import { detectLocation } from "../../utils/detectLocation.js";
+import { detectLocation } from "../../utils/detectLocation";
+import { searchLocation } from "../../utils/locationSearch";
 
 export default function LocationModal({
   visible,
@@ -26,12 +27,14 @@ export default function LocationModal({
 
   const [streetAddress, setStreetAddress] = useState(initialStreet);
   const [cityState, setCityState] = useState(initialCity);
+  const [coordinates, setCoordinates] = useState(null);
   const [isDetecting, setIsDetecting] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setStreetAddress(initialStreet || "");
       setCityState(initialCity || "");
+      setCoordinates(null);
     }
   }, [visible, initialStreet, initialCity]);
 
@@ -45,7 +48,8 @@ export default function LocationModal({
 
       setStreetAddress(loc.address || "");
       setCityState(loc.city || "");
-    } catch (e) {
+      setCoordinates(loc.location.coordinates);
+    } catch {
       Alert.alert(
         "Location Error",
         "Unable to detect your location. Please enter it manually."
@@ -56,15 +60,35 @@ export default function LocationModal({
   };
 
   /* ===================== SAVE ===================== */
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!cityState?.trim()) {
       Alert.alert("Missing City", "Please enter your city");
       return;
     }
 
+    let finalCoords = coordinates;
+
+    // Manual entry → geocode
+    if (!finalCoords) {
+      const results = await searchLocation(`${streetAddress} ${cityState}`);
+
+      if (!results.length) {
+        Alert.alert(
+          "Location Error",
+          "Unable to locate this address. Please try again."
+        );
+        return;
+      }
+
+      finalCoords = [Number(results[0].lon), Number(results[0].lat)];
+    }
+
     onSave({
-      streetAddress: streetAddress.trim(),
-      cityState: cityState.trim(),
+      city: cityState.trim(),
+      location: {
+        type: "Point",
+        coordinates: finalCoords,
+      },
     });
   };
 
@@ -94,12 +118,12 @@ export default function LocationModal({
                 Set your location
               </Text>
 
+              {/* STREET */}
               <Text
                 style={[styles.label, { color: theme.colors.textSecondary }]}
               >
                 Street / Address
               </Text>
-
               <View
                 style={[
                   styles.inputBox,
@@ -118,6 +142,7 @@ export default function LocationModal({
                 />
               </View>
 
+              {/* CITY */}
               <Text
                 style={[
                   styles.label,
@@ -126,7 +151,6 @@ export default function LocationModal({
               >
                 City, State
               </Text>
-
               <View
                 style={[
                   styles.inputBox,
@@ -145,6 +169,7 @@ export default function LocationModal({
                 />
               </View>
 
+              {/* DETECT */}
               <TouchableOpacity
                 style={[
                   styles.detectBtn,
@@ -160,6 +185,7 @@ export default function LocationModal({
                 </Text>
               </TouchableOpacity>
 
+              {/* ACTIONS */}
               <View style={styles.buttonsRow}>
                 <TouchableOpacity
                   style={[
@@ -195,6 +221,7 @@ export default function LocationModal({
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const SHEET_BORDER_RADIUS = 16;
 
 const styles = StyleSheet.create({
@@ -203,9 +230,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "flex-end",
   },
-  avoider: {
-    width: "100%",
-  },
+  avoider: { width: "100%" },
   sheetContainer: {
     position: "absolute",
     left: 0,
@@ -251,10 +276,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   detectBtnText: { color: "#FFF", marginLeft: 8, fontWeight: "700" },
-  buttonsRow: {
-    flexDirection: "row",
-    marginTop: 14,
-  },
+  buttonsRow: { flexDirection: "row", marginTop: 14 },
   cancelBtn: {
     flex: 1,
     paddingVertical: 12,

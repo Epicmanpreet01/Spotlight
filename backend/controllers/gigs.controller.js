@@ -14,38 +14,30 @@ import {
 import { v2 as cloudinary } from "cloudinary";
 import BookerProfile from "../models/bookerProfile.model.js";
 
+const MIN_RESULTS = 30;
+const EARTH_RADIUS_KM = 6378.1;
+
 // filters, geo search, name -> gig list
 export const getGigs = async (req, res) => {
   const rawFilters = req.cleanedQuery || {};
   const { user } = req;
 
-  if (!user) {
+  if (!user || user.role === "booker") {
     return res.status(401).json({
       success: false,
       error: "Unauthorized access",
     });
   }
 
-  if (user.role === "booker") {
-    return res
-      .status(400)
-      .json({ success: false, error: "Unauthorized access" });
-  }
-
   try {
     const userProfile = await User.findById(user._id).select("location city");
-
     if (!userProfile) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found",
-      });
+      return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // take pagination out of filters
     const { page: pageRaw, limit: limitRaw, radius, ...filters } = rawFilters;
 
-    // date filter
+    /* ===================== DATE FILTER ===================== */
     if (filters.eventDate) {
       try {
         const { start, end } = validateDateRange(filters.eventDate);
@@ -58,8 +50,6 @@ export const getGigs = async (req, res) => {
       }
     }
 
-    // geo
-    let geoQuery = {};
     const hasLocation =
       userProfile.location &&
       Array.isArray(userProfile.location.coordinates) &&
@@ -68,50 +58,70 @@ export const getGigs = async (req, res) => {
           (val, i) => val === DEFAULT_COORDS[i]
         ) && userProfile.city === DEFAULT_CITY
       );
-    if (hasLocation) {
-      const [lng, lat] = userProfile.location.coordinates;
-      const radiusKm = Number(radius) || 100;
-      delete filters.radius;
 
-      geoQuery = {
-        location: {
-          $near: {
-            $geometry: { type: "Point", coordinates: [lng, lat] },
-            $maxDistance: radiusKm * 1000,
-          },
-        },
-      };
-    }
-
-    const finalQuery = {
-      ...filters,
-      ...geoQuery,
-      status: "open",
-    };
+    const baseQuery = { ...filters, status: "open" };
 
     const page = Number(pageRaw) || 1;
     const limit = Number(limitRaw) || 10;
     const skip = (page - 1) * limit;
 
-    const gigs = await Gig.find(finalQuery)
-      .populate("postedBy", "name profileImage")
-      .select("-applicants")
-      .skip(skip)
-      .limit(limit)
-      .sort({ "eventDate.start": 1 });
+    let gigs = [];
 
-    const total = await Gig.countDocuments(finalQuery);
+    /* ===================== GEO PRIORITY SEARCH ===================== */
+    if (hasLocation) {
+      const [lng, lat] = userProfile.location.coordinates;
+      const radiusKm = Number(radius) || 100;
+
+      const geoQuery = {
+        location: {
+          $geoWithin: {
+            $centerSphere: [[lng, lat], radiusKm / EARTH_RADIUS_KM],
+          },
+        },
+      };
+
+      // 1️⃣ Nearby gigs
+      const nearbyGigs = await Gig.find({ ...baseQuery, ...geoQuery })
+        .populate("postedBy", "name profileImage")
+        .select("-applicants")
+        .sort({ "eventDate.start": 1 });
+
+      gigs = nearbyGigs;
+
+      // 2️⃣ Add farther gigs if fewer than MIN_RESULTS
+      if (gigs.length < MIN_RESULTS) {
+        const excludeIds = gigs.map((g) => g._id);
+
+        const fartherGigs = await Gig.find({
+          ...baseQuery,
+          _id: { $nin: excludeIds },
+        })
+          .populate("postedBy", "name profileImage")
+          .select("-applicants")
+          .sort({ "eventDate.start": 1 });
+
+        gigs = [...gigs, ...fartherGigs];
+      }
+    } else {
+      gigs = await Gig.find(baseQuery)
+        .populate("postedBy", "name profileImage")
+        .select("-applicants")
+        .sort({ "eventDate.start": 1 });
+    }
+
+    const total = gigs.length;
+    const paginatedGigs = gigs.slice(skip, skip + limit);
 
     return res.status(200).json({
       success: true,
       message: "Fetched gigs successfully",
-      count: gigs.length,
+      count: paginatedGigs.length,
       pagination: {
         total,
         page,
         pages: Math.ceil(total / limit),
       },
-      data: gigs,
+      data: paginatedGigs,
     });
   } catch (error) {
     console.error("Error getting gigs:", error);

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../context/ThemeContext";
 import { detectLocation } from "../../../utils/detectLocation";
+import { searchLocation } from "../../../utils/locationSearch";
 
 export default function BookerLocationModal({
   visible,
@@ -25,52 +26,64 @@ export default function BookerLocationModal({
 
   const [streetAddress, setStreetAddress] = useState(initialStreet);
   const [cityState, setCityState] = useState(initialCity);
+  const [coordinates, setCoordinates] = useState(null);
   const [isDetecting, setIsDetecting] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setStreetAddress(initialStreet || "");
       setCityState(initialCity || "");
+      setCoordinates(null);
     }
   }, [visible, initialStreet, initialCity]);
 
-  /* ===================== LOCATION DETECT ===================== */
+  /* ===================== AUTO DETECT ===================== */
   const handleDetect = async () => {
     try {
       setIsDetecting(true);
-
       const result = await detectLocation();
       if (!result) return;
 
       setStreetAddress(result.address || "");
       setCityState(result.city || "");
-    } catch (e) {
-      Alert.alert("Error", "Unable to detect location. Please try again.");
+      setCoordinates(result.location.coordinates);
     } finally {
       setIsDetecting(false);
     }
   };
 
   /* ===================== SAVE ===================== */
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!cityState?.trim()) {
       Alert.alert("Missing City", "Please enter your city");
       return;
     }
 
+    let finalCoords = coordinates;
+
+    // Manual entry → geocode
+    if (!finalCoords) {
+      const results = await searchLocation(`${streetAddress} ${cityState}`);
+
+      if (!results.length) {
+        Alert.alert("Error", "Unable to locate this address");
+        return;
+      }
+
+      finalCoords = [Number(results[0].lon), Number(results[0].lat)];
+    }
+
     onSave({
-      streetAddress: streetAddress.trim(),
-      cityState: cityState.trim(),
+      city: cityState.trim(),
+      location: {
+        type: "Point",
+        coordinates: finalCoords,
+      },
     });
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      statusBarTranslucent
-    >
+    <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -87,6 +100,7 @@ export default function BookerLocationModal({
                 Set your location
               </Text>
 
+              {/* STREET */}
               <Text
                 style={[styles.label, { color: theme.colors.textSecondary }]}
               >
@@ -95,10 +109,7 @@ export default function BookerLocationModal({
               <View
                 style={[
                   styles.inputBox,
-                  {
-                    backgroundColor: theme.colors.inputBg,
-                    borderColor: theme.colors.border,
-                  },
+                  { backgroundColor: theme.colors.inputBg },
                 ]}
               >
                 <TextInput
@@ -110,6 +121,7 @@ export default function BookerLocationModal({
                 />
               </View>
 
+              {/* CITY */}
               <Text
                 style={[
                   styles.label,
@@ -121,10 +133,7 @@ export default function BookerLocationModal({
               <View
                 style={[
                   styles.inputBox,
-                  {
-                    backgroundColor: theme.colors.inputBg,
-                    borderColor: theme.colors.border,
-                  },
+                  { backgroundColor: theme.colors.inputBg },
                 ]}
               >
                 <TextInput
@@ -136,6 +145,7 @@ export default function BookerLocationModal({
                 />
               </View>
 
+              {/* DETECT */}
               <TouchableOpacity
                 style={[
                   styles.detectBtn,
@@ -150,6 +160,7 @@ export default function BookerLocationModal({
                 </Text>
               </TouchableOpacity>
 
+              {/* ACTIONS */}
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={[
@@ -157,7 +168,6 @@ export default function BookerLocationModal({
                     { backgroundColor: theme.colors.inputBg },
                   ]}
                   onPress={onClose}
-                  disabled={isDetecting}
                 >
                   <Text style={{ color: theme.colors.textSecondary }}>
                     Cancel
@@ -170,7 +180,6 @@ export default function BookerLocationModal({
                     { backgroundColor: theme.colors.primary },
                   ]}
                   onPress={handleSave}
-                  disabled={isDetecting}
                 >
                   <Text style={styles.saveText}>Save</Text>
                 </TouchableOpacity>

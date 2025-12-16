@@ -5,9 +5,15 @@ export const useNotifications = () =>
   useQuery({
     queryKey: ["notifications"],
     queryFn: async () => {
-      const res = await api.get("/notifications");
-      return res.data.data || [];
+      try {
+        const res = await api.get("/notifications");
+        return res?.data?.data || [];
+      } catch (error) {
+        console.warn("Failed to fetch notifications:", error?.message);
+        return [];
+      }
     },
     refetchInterval: 5000,
     staleTime: 1000 * 30,
+    retry: false,
   });

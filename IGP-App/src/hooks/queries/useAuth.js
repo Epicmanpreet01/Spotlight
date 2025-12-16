@@ -1,18 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { getMe } from "../../api/auth.api";
+import api from "../../api/api";
 
 export const useCurrentUser = () =>
   useQuery({
     queryKey: ["currentUser"],
     queryFn: async () => {
       try {
-        const res = await getMe();
-        if (!res?.success) return null;
-        return res;
+        const res = await api.get("/auth/me");
+        return res.data;
       } catch {
         return null;
       }
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: false,
   });

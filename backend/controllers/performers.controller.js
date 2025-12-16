@@ -8,17 +8,20 @@ import {
 } from "../utils/image.utils.js";
 import { v2 as cloudinary } from "cloudinary";
 
+const MIN_RESULTS = 30;
+const EARTH_RADIUS_KM = 6378.1;
+
 // filters, geo searching, name searching -> performer list
 export const getPerformers = async (req, res) => {
   const { user } = req;
   const rawFilters = req.cleanedQuery || {};
-  const { page: pageRaw, limit: limitRaw, ...filters } = rawFilters;
-  let mongoQuery = { ...filters };
+  const { page: pageRaw, limit: limitRaw, radius, ...filters } = rawFilters;
 
-  if (user && user.role === "performer")
+  if (user && user.role === "performer") {
     return res
       .status(401)
       .json({ success: false, error: "Unauthorized access" });
+  }
 
   try {
     let userProfile = null;
@@ -32,91 +35,88 @@ export const getPerformers = async (req, res) => {
       }
     }
 
-    // Name search...
-    if (mongoQuery.name) {
-      const matchingUsers = await User.find({
-        name: mongoQuery.name,
-      }).select("_id");
+    let mongoQuery = { ...filters };
 
+    /* ===================== NAME SEARCH ===================== */
+    if (mongoQuery.name) {
+      const matchingUsers = await User.find({ name: mongoQuery.name }).select(
+        "_id"
+      );
       mongoQuery.user = { $in: matchingUsers.map((u) => u._id) };
       delete mongoQuery.name;
     }
 
-    // Geo search...
-    if (
-      user &&
+    const hasLocation =
+      userProfile?.location &&
+      Array.isArray(userProfile.location.coordinates) &&
       !(
-        userProfile?.location?.coordinates.every(
+        userProfile.location.coordinates.every(
           (val, i) => val === DEFAULT_COORDS[i]
-        ) && userProfile?.city === DEFAULT_CITY
-      )
-    ) {
-      const [lng, lat] = userProfile.location.coordinates;
-      const radiusKm = Number(filters.radius) || 100;
-      delete mongoQuery.radius;
+        ) && userProfile.city === DEFAULT_CITY
+      );
 
+    /* ===================== GEO PRIORITY SEARCH ===================== */
+    if (user && hasLocation) {
+      const [lng, lat] = userProfile.location.coordinates;
+      const radiusKm = Number(radius) || 100;
+
+      // 1️⃣ Nearby performers
       const nearbyUsers = await User.find({
         role: "performer",
         location: {
-          $near: {
-            $geometry: { type: "Point", coordinates: [lng, lat] },
-            $maxDistance: radiusKm * 1000,
+          $geoWithin: {
+            $centerSphere: [[lng, lat], radiusKm / EARTH_RADIUS_KM],
           },
         },
       }).select("_id");
 
-      if (nearbyUsers.length === 0) {
-        return res.status(200).json({
-          success: true,
-          message: "No performers found near your location",
-          count: 0,
-          pagination: { total: 0, page: 1, pages: 0 },
-          data: [],
-        });
+      let performerIds = nearbyUsers.map((u) => u._id);
+
+      // 2️⃣ Add farther performers if fewer than MIN_RESULTS
+      if (performerIds.length < MIN_RESULTS) {
+        const extraUsers = await User.find({
+          role: "performer",
+          _id: { $nin: performerIds },
+        }).select("_id");
+
+        performerIds = [...performerIds, ...extraUsers.map((u) => u._id)];
       }
 
-      const nearIds = nearbyUsers.map((u) => u._id);
-
-      if (mongoQuery.user) {
+      if (mongoQuery.user?.$in) {
         mongoQuery.user.$in = mongoQuery.user.$in.filter((id) =>
-          nearIds.some((nid) => nid.equals(id))
+          performerIds.some((pid) => pid.equals(id))
         );
-        if (mongoQuery.user.$in.length === 0) {
-          return res.status(200).json({
-            success: true,
-            message: "No performers matching filters & location",
-            count: 0,
-            pagination: { total: 0, page: 1, pages: 0 },
-            data: [],
-          });
-        }
       } else {
-        mongoQuery.user = { $in: nearIds };
+        mongoQuery.user = { $in: performerIds };
       }
     }
+
+    /* ===================== PAGINATION ===================== */
+    const page = Number(pageRaw) || 1;
+    const limit = Number(limitRaw) || 10;
+    const skip = (page - 1) * limit;
 
     const privateFields = user ? "city location" : "";
     const publicFields =
       "category subCategory type bio priceStartingAt galleryImages videoLinks averageRating reviewCount";
 
-    const page = Number(pageRaw) || 1;
-    const limit = Number(limitRaw) || 10;
-    const skip = (page - 1) * limit;
-
-    const performers = await PerformerProfile.find(mongoQuery)
+    const allPerformers = await PerformerProfile.find(mongoQuery)
       .populate("user", "name profileImage")
       .select(`${publicFields} ${privateFields}`)
-      .skip(skip)
-      .limit(limit)
       .sort({ averageRating: -1 });
 
-    const total = await PerformerProfile.countDocuments(mongoQuery);
+    const total = allPerformers.length;
+    const performers = allPerformers.slice(skip, skip + limit);
 
     return res.status(200).json({
       success: true,
       message: "Fetched performers successfully",
       count: performers.length,
-      pagination: { total, page, pages: Math.ceil(total / limit) },
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
       data: performers,
     });
   } catch (error) {
