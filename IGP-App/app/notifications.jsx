@@ -1,3 +1,4 @@
+import React from "react";
 import {
   View,
   Text,
@@ -5,56 +6,53 @@ import {
   FlatList,
   TouchableOpacity,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 
-import Colors from "../src/constants/Colors.js";
-import api from "../src/api/api.js";
+import api from "../src/api/api";
+import { useTheme } from "../src/context/ThemeContext";
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["notifications"],
     queryFn: async () => (await api.get("/notifications")).data,
   });
 
   const renderItem = ({ item }) => (
-    <View style={[styles.card, !item.read && styles.unreadCard]}>
-      <View
-        style={[
-          styles.iconBox,
-          {
-            backgroundColor: item.type === "gig_alert" ? "#FFF3E0" : "#E3F2FD",
-          },
-        ]}
-      >
-        <Ionicons
-          name={item.type === "gig_alert" ? "musical-notes" : "notifications"}
-          size={24}
-          color={item.type === "gig_alert" ? Colors.primary : "#2196F3"}
-        />
+    <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+      <View style={[styles.iconBox, { backgroundColor: theme.colors.inputBg }]}>
+        <Ionicons name="notifications" size={22} color={theme.colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.message}>{item.message}</Text>
-        <Text style={styles.time}>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          {item.title}
+        </Text>
+        <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
+          {item.message}
+        </Text>
+        <Text style={[styles.time, { color: theme.colors.textSecondary }]}>
           {new Date(item.createdAt).toLocaleDateString()}
         </Text>
       </View>
-      {!item.read && <View style={styles.dot} />}
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          Notifications
+        </Text>
       </View>
 
       <FlatList
@@ -62,40 +60,26 @@ export default function NotificationsScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={{ padding: 20 }}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No new notifications</Text>
-        }
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF" },
+  container: { flex: 1 },
   header: {
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginLeft: 20,
-    color: Colors.textPrimary,
-  },
+  headerTitle: { fontSize: 20, fontWeight: "700", marginLeft: 20 },
   card: {
     flexDirection: "row",
     padding: 15,
-    marginBottom: 15,
-    backgroundColor: "#FFF",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    alignItems: "center",
+    marginBottom: 14,
   },
-  unreadCard: { backgroundColor: "#F5F5F5", borderColor: "#E0E0E0" },
   iconBox: {
     width: 45,
     height: 45,
@@ -104,19 +88,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 15,
   },
-  title: { fontSize: 16, fontWeight: "bold", color: Colors.textPrimary },
-  message: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
-  time: { fontSize: 12, color: Colors.textLight, marginTop: 8 },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.primary,
-    marginLeft: 10,
-  },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 50,
-    color: Colors.textSecondary,
-  },
+  title: { fontSize: 16, fontWeight: "700" },
+  message: { fontSize: 14, marginTop: 4 },
+  time: { fontSize: 12, marginTop: 6 },
 });

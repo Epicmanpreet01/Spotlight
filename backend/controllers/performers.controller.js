@@ -24,7 +24,7 @@ export const getPerformers = async (req, res) => {
     let userProfile = null;
 
     if (user) {
-      userProfile = await User.findById(user._id).select("location");
+      userProfile = await User.findById(user._id).select("location city");
       if (!userProfile) {
         return res
           .status(404)
@@ -52,7 +52,7 @@ export const getPerformers = async (req, res) => {
       )
     ) {
       const [lng, lat] = userProfile.location.coordinates;
-      const radiusKm = Number(filters.radius) || 25;
+      const radiusKm = Number(filters.radius) || 100;
       delete mongoQuery.radius;
 
       const nearbyUsers = await User.find({

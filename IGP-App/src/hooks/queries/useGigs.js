@@ -1,16 +1,16 @@
+// src/hooks/queries/useGigs.js
 import { useQuery } from "@tanstack/react-query";
 import { fetchGigs, fetchGigById } from "../../api/gigs.api";
 import Toast from "react-native-toast-message";
 
-export const useGigsQuery = (filters = {}) =>
+export const useGigsQuery = (filters = {}, enabled = true) =>
   useQuery({
     queryKey: ["gigs", filters],
+    enabled,
     queryFn: async () => {
       try {
-        const res = await fetchGigs(filters);
-        return res;
+        return await fetchGigs(filters);
       } catch (error) {
-        console.error("❌ Error fetching gigs:", error);
         Toast.show({
           type: "error",
           text1: "Failed to load gigs",
@@ -28,10 +28,8 @@ export const useGigByIdQuery = (id) =>
     enabled: !!id,
     queryFn: async () => {
       try {
-        const res = await fetchGigById(id);
-        return res;
+        return await fetchGigById(id);
       } catch (error) {
-        console.error(`❌ Error fetching gig (${id}):`, error);
         Toast.show({
           type: "error",
           text1: "Failed to load gig",

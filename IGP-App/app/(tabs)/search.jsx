@@ -1,223 +1,248 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
-  TouchableOpacity,
-  FlatList,
-  Image,
-  LayoutAnimation,
-} from "react-native";
+// app/(tabs)/search.jsx
+import React, { useState, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { View, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-
+import api from "../../src/api/api";
 import { useTheme } from "../../src/context/ThemeContext";
-import api from "../../src/api/api.js";
-import { PERFORMER_CATEGORIES } from "../../src/constants/Categories.js";
+import { Ionicons } from "@expo/vector-icons";
+
+// Performer components (existing)
+import ExploreHeader from "../../src/components/explore/ExploreHeader";
+import CategoryChips from "../../src/components/explore/CategoryChips";
+import GigCard from "../../src/components/explore/GigCard";
+import ExploreEmptyState from "../../src/components/explore/ExploreEmptyState";
+import SearchBar from "../../src/components/explore/SearchBar";
+import FilterDropdown from "../../src/components/explore/FilterDropdown";
+
+// Booker components (new)
+import BookerExploreHeader from "../../src/components/booker/explore/BookerExploreHeader";
+import BookerCategoryChips from "../../src/components/booker/explore/BookerCategoryChips";
+import BookerPerformerCard from "../../src/components/booker/explore/BookerPerformerCard";
+import BookerExploreEmptyState from "../../src/components/booker/explore/BookerExploreEmptyState";
+import BookerFilterDropdown from "../../src/components/booker/explore/BookerFilterDropdown";
 
 export default function SearchScreen() {
-  const router = useRouter();
   const { theme } = useTheme();
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Fetch Data
-  const { data: feedData } = useQuery({
+  // UI state
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [queryText, setQueryText] = useState("");
+
+  // filters from dropdown
+  const [budgetFilter, setBudgetFilter] = useState(null); // {min, max}
+  const [dateFilter, setDateFilter] = useState(null); // 'week' | 'month' | null
+
+  const { data: userResp } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      try {
+        return (await api.get("/auth/me")).data;
+      } catch (e) {
+        return null;
+      }
+    },
+    retry: false,
+  });
+
+  const { data } = useQuery({
     queryKey: ["gigs"],
     queryFn: async () => (await api.get("/gigs")).data,
+    retry: false,
   });
-  const allGigs = feedData?.data || [];
 
-  const toggleFilter = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsFilterOpen(!isFilterOpen);
-  };
+  const gigs = data?.data || [];
 
-  const renderCard = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: theme.colors.card }]}
-      onPress={() => router.push(`/gig-details/${item._id}`)}
-    >
-      <Image source={{ uri: item.image }} style={styles.cardImage} />
-      <View style={styles.cardContent}>
-        <View style={styles.row}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-            {item.title}
-          </Text>
-          <Text style={styles.cardPrice}>₹{item.budget}</Text>
+  // compute date ranges used for filtering
+  const now = new Date();
+  const startOfWeek = (() => {
+    const d = new Date(now);
+    const day = d.getDay();
+    d.setDate(d.getDate() - day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const endOfWeek = (() => {
+    const d = new Date(startOfWeek);
+    d.setDate(d.getDate() + 7);
+    return d;
+  })();
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  // client-side filtering: category, search text, budget, date
+  const filtered = useMemo(() => {
+    const q = queryText.trim().toLowerCase();
+    return gigs.filter((g) => {
+      const byCategory =
+        activeCategory === "All" ||
+        (g.categoryRequired || "").toLowerCase() ===
+          activeCategory.toLowerCase();
+
+      const byQuery =
+        !q ||
+        (g.title || "").toLowerCase().includes(q) ||
+        (g.description || "").toLowerCase().includes(q);
+
+      let byBudget = true;
+      if (budgetFilter && typeof budgetFilter.min === "number") {
+        const b = Number(g.budget || 0);
+        byBudget = b >= budgetFilter.min && b <= (budgetFilter.max ?? b);
+      }
+
+      let byDate = true;
+      if (dateFilter === "week") {
+        const ev = new Date(g.eventDate?.start);
+        byDate = ev >= startOfWeek && ev <= endOfWeek;
+      } else if (dateFilter === "month") {
+        const ev = new Date(g.eventDate?.start);
+        byDate = ev < startOfNextMonth;
+      }
+
+      return byCategory && byQuery && byBudget && byDate;
+    });
+  }, [gigs, activeCategory, queryText, budgetFilter, dateFilter]);
+
+  // If booker -> show performers instead. We will query performers endpoint (mock) for booker.
+  const role = userResp?.data?.role;
+  const { data: performersResp } = useQuery({
+    queryKey: ["performersList"],
+    queryFn: async () => {
+      try {
+        return (await api.get("/performers")).data;
+      } catch (e) {
+        return null;
+      }
+    },
+    enabled: role === "booker",
+    retry: false,
+  });
+  const performers = performersResp?.data || [];
+
+  if (role === "booker") {
+    // Booker's explore: discover performers (uses performer filter by category + text)
+    const filteredPerformers = performers.filter((p) => {
+      const q = queryText.trim().toLowerCase();
+      const byCategory =
+        activeCategory === "All" ||
+        (p.category || "").toLowerCase() === activeCategory.toLowerCase();
+      const byQuery =
+        !q ||
+        (p.user?.name || "").toLowerCase().includes(q) ||
+        (p.bio || "").toLowerCase().includes(q);
+      return byCategory && byQuery;
+    });
+
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
+        <BookerExploreHeader />
+
+        <View style={styles.searchRow}>
+          <View style={{ flex: 1 }}>
+            <SearchBar
+              placeholder="Search performers..."
+              value={queryText}
+              onChangeText={setQueryText}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.filterBtn,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={() => setIsFilterOpen(true)}
+          >
+            <Ionicons name="options" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <Text style={styles.cardSub}>
-          {item.categoryRequired} • {item.location.city}
-        </Text>
-        <Text style={styles.cardDate}>
-          {new Date(item.eventDate.start).toDateString()}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
 
+        <BookerCategoryChips
+          active={activeCategory}
+          onSelect={setActiveCategory}
+        />
+
+        {filteredPerformers.length === 0 ? (
+          <BookerExploreEmptyState />
+        ) : (
+          <FlatList
+            data={filteredPerformers}
+            keyExtractor={(i) => i._id}
+            renderItem={({ item }) => <BookerPerformerCard item={item} />}
+            contentContainerStyle={{ padding: 20 }}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        <BookerFilterDropdown
+          visible={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          onApply={(filter) => {
+            if (filter?.type === "budget") {
+              setBudgetFilter({ min: filter.min, max: filter.max });
+            }
+            setIsFilterOpen(false);
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Performer explore (unchanged)
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Explore
-        </Text>
-      </View>
+      <ExploreHeader />
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View
-          style={[
-            styles.searchBar,
-            {
-              backgroundColor: theme.colors.inputBg,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={20}
-            color={theme.colors.textSecondary}
-          />
-          <TextInput
-            style={[styles.input, { color: theme.colors.text }]}
+      <View style={styles.searchRow}>
+        <View style={{ flex: 1 }}>
+          <SearchBar
             placeholder="Search gigs, artists..."
-            placeholderTextColor={theme.colors.textSecondary}
+            value={queryText}
+            onChangeText={setQueryText}
           />
         </View>
+
         <TouchableOpacity
           style={[styles.filterBtn, { backgroundColor: theme.colors.primary }]}
-          onPress={toggleFilter}
+          onPress={() => setIsFilterOpen(true)}
         >
-          <Ionicons
-            name={isFilterOpen ? "close" : "options-outline"}
-            size={24}
-            color="#FFF"
-          />
+          <Ionicons name="options" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* DROPDOWN FILTER SECTION */}
-      {isFilterOpen && (
-        <View
-          style={[
-            styles.filterSection,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.filterLabel, { color: theme.colors.text }]}>
-            Budget
-          </Text>
-          <View style={styles.filterRow}>
-            {["Low", "Medium", "High"].map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.filterChip,
-                  { backgroundColor: theme.colors.inputBg },
-                ]}
-              >
-                <Text style={{ color: theme.colors.text }}>{opt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+      <CategoryChips
+        active={activeCategory}
+        onSelect={(cat) => setActiveCategory(cat)}
+      />
 
-          <Text style={[styles.filterLabel, { color: theme.colors.text }]}>
-            Date
-          </Text>
-          <View style={styles.filterRow}>
-            {["Today", "This Week", "This Month"].map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.filterChip,
-                  { backgroundColor: theme.colors.inputBg },
-                ]}
-              >
-                <Text style={{ color: theme.colors.text }}>{opt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+      {filtered.length === 0 ? (
+        <ExploreEmptyState />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(i) => i._id}
+          renderItem={({ item }) => <GigCard item={item} />}
+          contentContainerStyle={{ padding: 20 }}
+          showsVerticalScrollIndicator={false}
+        />
       )}
 
-      {/* Category Chips */}
-      <View style={{ height: 50 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-        >
-          <TouchableOpacity
-            style={[
-              styles.chip,
-              activeCategory === "All" && styles.activeChip,
-              {
-                backgroundColor:
-                  activeCategory === "All"
-                    ? theme.colors.primary
-                    : theme.colors.inputBg,
-              },
-            ]}
-            onPress={() => setActiveCategory("All")}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                activeCategory === "All"
-                  ? styles.activeChipText
-                  : { color: theme.colors.text },
-              ]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-          {PERFORMER_CATEGORIES.map((cat, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.chip,
-                activeCategory === cat && styles.activeChip,
-                {
-                  backgroundColor:
-                    activeCategory === cat
-                      ? theme.colors.primary
-                      : theme.colors.inputBg,
-                },
-              ]}
-              onPress={() => setActiveCategory(cat)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  activeCategory === cat
-                    ? styles.activeChipText
-                    : { color: theme.colors.text },
-                ]}
-              >
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <FlatList
-        data={allGigs}
-        renderItem={renderCard}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
+      <FilterDropdown
+        visible={isFilterOpen}
+        mode="performer"
+        onClose={() => setIsFilterOpen(false)}
+        onApply={(filter) => {
+          if (filter?.type === "budget") {
+            setBudgetFilter({ min: filter.min, max: filter.max });
+          } else if (filter?.type === "date") {
+            setDateFilter(filter.value);
+          }
+          setIsFilterOpen(false);
+        }}
       />
     </SafeAreaView>
   );
@@ -225,74 +250,17 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 10 },
-  title: { fontSize: 32, fontWeight: "bold" },
-  searchContainer: {
-    flexDirection: "row",
+  searchRow: {
     paddingHorizontal: 20,
-    marginBottom: 15,
-    alignItems: "center",
-  },
-  searchBar: {
-    flex: 1,
+    marginTop: 10,
+    marginBottom: 6,
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+  },
+  filterBtn: {
+    marginLeft: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 12,
-    marginRight: 12,
-    borderWidth: 1,
   },
-  input: { marginLeft: 10, flex: 1, fontSize: 16 },
-  filterBtn: { padding: 12, borderRadius: 12 },
-
-  // Filter Dropdown
-  filterSection: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 10,
-    marginTop: 5,
-  },
-  filterRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  filterChip: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-
-  categoryScroll: { paddingHorizontal: 20 },
-  chip: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    height: 35,
-  },
-  activeChip: {},
-  chipText: { fontSize: 13, fontWeight: "600" },
-  activeChipText: { color: "#FFF" },
-
-  list: { padding: 20 },
-  card: {
-    marginBottom: 20,
-    borderRadius: 16,
-    overflow: "hidden",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-  },
-  cardImage: { width: "100%", height: 160 },
-  cardContent: { padding: 15 },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardTitle: { fontSize: 16, fontWeight: "bold" },
-  cardPrice: { fontSize: 16, fontWeight: "bold", color: "green" },
-  cardSub: { fontSize: 14, color: "#666", marginTop: 5 },
-  cardDate: { fontSize: 12, color: "#999", marginTop: 4 },
 });

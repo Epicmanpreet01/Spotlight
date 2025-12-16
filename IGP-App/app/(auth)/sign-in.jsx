@@ -11,7 +11,6 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useSigninMutation } from "@/src/hooks/mutations/useAuthMutation.js";

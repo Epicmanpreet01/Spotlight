@@ -70,7 +70,7 @@ export const getGigs = async (req, res) => {
       );
     if (hasLocation) {
       const [lng, lat] = userProfile.location.coordinates;
-      const radiusKm = Number(radius) || 25;
+      const radiusKm = Number(radius) || 100;
       delete filters.radius;
 
       geoQuery = {
@@ -262,9 +262,6 @@ export const updateGig = async (req, res) => {
 
     const hasApplicants = gig.applicants.length > 0;
 
-    // --------------------------------------------------
-    // PROTECT SENSITIVE FIELDS IF APPLICANTS EXIST
-    // --------------------------------------------------
     if (
       hasApplicants &&
       (updateBody.location || updateBody.eventDate || req.file)
@@ -276,9 +273,6 @@ export const updateGig = async (req, res) => {
       });
     }
 
-    // --------------------------------------------------
-    // UPDATE LOCATION
-    // --------------------------------------------------
     if (updateBody.location) {
       const { lng, lat } = validateLocation(updateBody.location);
       gig.location = {
@@ -288,17 +282,11 @@ export const updateGig = async (req, res) => {
       };
     }
 
-    // --------------------------------------------------
-    // UPDATE EVENT DATE
-    // --------------------------------------------------
     if (updateBody.eventDate) {
       const { start, end } = validateDateRange(updateBody.eventDate);
       gig.eventDate = { start, end };
     }
 
-    // --------------------------------------------------
-    // PREVIEW IMAGE UPDATE (DELETE OLD + UPLOAD NEW)
-    // --------------------------------------------------
     if (req.file) {
       const oldImageUrl = gig.previewImage;
       const newUrl = await uploadToCloudinary(req.file, "gigs_preview");
@@ -322,9 +310,6 @@ export const updateGig = async (req, res) => {
       }
     }
 
-    // --------------------------------------------------
-    // BASIC FIELD UPDATES
-    // --------------------------------------------------
     gig.title = updateBody.title ?? gig.title;
     gig.description = updateBody.description ?? gig.description;
     gig.categoryRequired = updateBody.categoryRequired ?? gig.categoryRequired;
@@ -339,9 +324,6 @@ export const updateGig = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // --------------------------------------------------
-    // NOTIFY APPLICANTS
-    // --------------------------------------------------
     if (hasApplicants) {
       for (const applicant of gig.applicants) {
         await sendNotification(req.io, {

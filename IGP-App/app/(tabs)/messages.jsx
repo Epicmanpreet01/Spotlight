@@ -1,27 +1,89 @@
+// app/(tabs)/messages.jsx
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import Colors from "../../src/constants/Colors";
+import { View, StyleSheet } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import api from "../../src/api/api";
+import { useTheme } from "../../src/context/ThemeContext";
+
+// Performer message components
+import {
+  MessagesHeader,
+  ChatListItem,
+  EmptyMessages,
+} from "../../src/components/messages";
+
+// Booker message components
+import {
+  BookerMessagesHeader,
+  BookerChatListItem,
+  BookerEmptyMessages,
+} from "../../src/components/booker/messages";
 
 export default function MessagesScreen() {
+  const { theme } = useTheme();
+
+  /* ===== CURRENT USER ===== */
+  const { data: userResp } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      try {
+        return (await api.get("/auth/me")).data;
+      } catch {
+        return null;
+      }
+    },
+    retry: false,
+  });
+
+  const user = userResp?.data;
+  const role = user?.role;
+
+  /* ===== WHICH COMPONENT SET TO USE ===== */
+  const isBooker = role === "booker";
+
+  const Header = isBooker ? BookerMessagesHeader : MessagesHeader;
+  const Item = isBooker ? BookerChatListItem : ChatListItem;
+  const Empty = isBooker ? BookerEmptyMessages : EmptyMessages;
+
+  /* ===== FETCH CHATS ===== */
+  const { data: chatsResp } = useQuery({
+    queryKey: ["myChats"],
+    queryFn: async () => (await api.get("/chat")).data,
+    retry: false,
+  });
+
+  const chats = chatsResp?.data || [];
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-      </View>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      {/* HEADER (Booker / Performer) */}
+      <Header />
+
+      {/* CONTENT */}
       <View style={styles.content}>
-        <Ionicons name="chatbubbles-outline" size={60} color={Colors.neutral} />
-        <Text style={styles.text}>No chats yet</Text>
+        {/* No chats */}
+        {chats.length === 0 ? (
+          <Empty />
+        ) : (
+          <View style={{ width: "100%", padding: 20 }}>
+            {chats.map((chat) => (
+              <Item
+                key={chat._id}
+                chat={chat}
+                onPress={() => console.log("Open chat", chat._id)}
+              />
+            ))}
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { padding: 20, borderBottomWidth: 1, borderColor: "#F5F5F5" },
-  title: { fontSize: 28, fontWeight: "bold", color: Colors.textPrimary },
-  content: { flex: 1, justifyContent: "center", alignItems: "center" },
-  text: { marginTop: 10, color: Colors.textSecondary },
+  container: { flex: 1 },
+  content: { flex: 1 },
 });
