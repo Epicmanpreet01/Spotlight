@@ -7,20 +7,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../src/context/ThemeContext";
 
-/* ===================== HOOKS ===================== */
-import { useCurrentUser } from "../../src/hooks/queries/useAuth.js";
-import { useGigsQuery } from "../../src/hooks/queries/useGigs.js";
-import { usePerformersQuery } from "../../src/hooks/queries/usePerformers.js";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../src/api/api";
+import { useCurrentUser } from "../../src/hooks/queries/useAuth";
+import { useGigsQuery } from "../../src/hooks/queries/useGigs";
+import { usePerformersQuery } from "../../src/hooks/queries/usePerformers";
+import { useNotifications } from "../../src/hooks/queries/useNotifications";
+import { useUpdateLocationMutation } from "../../src/hooks/mutations/useUpdateLocationMutation";
 
-/* ===================== COMPONENTS ===================== */
-/* Performer */
 import {
   NearbyGigsList,
   RecommendedGigsList,
@@ -28,7 +26,6 @@ import {
 } from "../../src/components/home";
 import LocationModal from "../../src/components/home/LocationModal";
 
-/* Booker */
 import BookerHomeHeader from "../../src/components/booker/home/BookerHomeHeader";
 import BookerNearbyList from "../../src/components/booker/home/BookerNearbyList";
 import BookerRecommendedList from "../../src/components/booker/home/BookerRecommendedList";
@@ -37,38 +34,29 @@ export default function HomeScreen() {
   const router = useRouter();
   const { theme } = useTheme();
 
-  /* ===================== CURRENT USER ===================== */
-  const { data: userResp } = useCurrentUser();
-  const user = userResp?.data;
-  const role = user?.role;
+  const [isLocationModalOpen, setLocationModalOpen] = useState(false);
 
-  /* ===================== PERFORMER DATA ===================== */
+  const { data: userResp, isLoading: isAuthLoading } = useCurrentUser();
+  const user = userResp?.data || null;
+  const role = user?.role || null;
+
+  const { data: notifications = [] } = useNotifications();
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const {
     data: gigsResp,
     isLoading: gigsLoading,
     refetch: refetchGigs,
   } = useGigsQuery({}, role === "performer");
 
-  const { data: notificationsResp } = useQuery({
-    queryKey: ["notifications"],
-    enabled: role === "performer",
-    queryFn: async () => (await api.get("/notifications")).data,
-    refetchInterval: 5000,
-  });
-
-  /* ===================== BOOKER DATA ===================== */
   const {
     data: performersResp,
     isLoading: perfLoading,
     refetch: refetchPerformers,
   } = usePerformersQuery({}, role === "booker");
 
-  /* ===================== DERIVED DATA ===================== */
   const gigs = gigsResp?.data || [];
   const performers = performersResp?.data || [];
-  const notifications = notificationsResp?.data || [];
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const nearbyGigs = gigs.slice(0, 7);
   const recommendedGigs = gigs.slice(7, 12);
@@ -76,22 +64,25 @@ export default function HomeScreen() {
   const nearbyPerformers = performers.slice(0, 4);
   const recommendedPerformers = performers.slice(4);
 
-  const [isLocationModalOpen, setLocationModalOpen] = useState(false);
+  const { mutate: updateLocation } = useUpdateLocationMutation();
 
-  /* ===================== AUTH GUARD ===================== */
-  if (!user) {
+  if (isAuthLoading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.background,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
       >
-        <View style={{ padding: 20 }}>
-          <Text style={{ color: theme.colors.text }}>Please login.</Text>
-        </View>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </SafeAreaView>
     );
   }
 
-  /* ===================== PERFORMER UI ===================== */
   if (role === "performer") {
     return (
       <SafeAreaView
@@ -103,11 +94,10 @@ export default function HomeScreen() {
           }
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          {/* HEADER */}
           <View style={[styles.topRow, { paddingHorizontal: 20 }]}>
             <View>
               <Text style={[styles.greeting, { color: theme.colors.text }]}>
-                Hello, {user?.name?.split(" ")[0] || "Artist"}!
+                Hello, {user.name.split(" ")[0]}!
               </Text>
 
               <TouchableOpacity
@@ -162,7 +152,6 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* NEARBY GIGS */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Nearby Gigs
@@ -180,7 +169,6 @@ export default function HomeScreen() {
             <NearbyGigsList items={nearbyGigs} />
           )}
 
-          {/* RECOMMENDED */}
           <View style={[styles.sectionHeader, { marginTop: 24 }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Recommended
@@ -194,13 +182,15 @@ export default function HomeScreen() {
           visible={isLocationModalOpen}
           initialCity={user.city || ""}
           onClose={() => setLocationModalOpen(false)}
-          onSave={() => setLocationModalOpen(false)}
+          onSave={({ cityState }) => {
+            updateLocation({ city: cityState });
+            setLocationModalOpen(false);
+          }}
         />
       </SafeAreaView>
     );
   }
 
-  /* ===================== BOOKER UI ===================== */
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -214,9 +204,8 @@ export default function HomeScreen() {
         }
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <BookerHomeHeader user={user} />
+        <BookerHomeHeader user={user} unreadCount={unreadCount} />
 
-        {/* NEARBY PERFORMERS */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Nearby Performers
@@ -230,7 +219,6 @@ export default function HomeScreen() {
 
         <BookerNearbyList performers={nearbyPerformers} />
 
-        {/* RECOMMENDED */}
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Recommended
@@ -240,7 +228,6 @@ export default function HomeScreen() {
         <BookerRecommendedList performers={recommendedPerformers} />
       </ScrollView>
 
-      {/* FLOATING CREATE EVENT */}
       <TouchableOpacity
         style={styles.createBtn}
         activeOpacity={0.85}
@@ -252,7 +239,6 @@ export default function HomeScreen() {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topRow: {

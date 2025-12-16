@@ -1,4 +1,3 @@
-// src/components/home/LocationModal.jsx
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -9,6 +8,7 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -35,18 +35,37 @@ export default function LocationModal({
     }
   }, [visible, initialStreet, initialCity]);
 
+  /* ===================== DETECT ===================== */
   const handleUseCurrentLocation = async () => {
-    setIsDetecting(true);
-    const loc = await detectLocation();
-    if (loc) {
-      setStreetAddress(loc.address);
-      setCityState(loc.city);
+    try {
+      setIsDetecting(true);
+
+      const loc = await detectLocation();
+      if (!loc) return;
+
+      setStreetAddress(loc.address || "");
+      setCityState(loc.city || "");
+    } catch (e) {
+      Alert.alert(
+        "Location Error",
+        "Unable to detect your location. Please enter it manually."
+      );
+    } finally {
+      setIsDetecting(false);
     }
-    setIsDetecting(false);
   };
 
+  /* ===================== SAVE ===================== */
   const handleSave = () => {
-    onSave({ streetAddress, cityState });
+    if (!cityState?.trim()) {
+      Alert.alert("Missing City", "Please enter your city");
+      return;
+    }
+
+    onSave({
+      streetAddress: streetAddress.trim(),
+      cityState: cityState.trim(),
+    });
   };
 
   return (
@@ -148,6 +167,7 @@ export default function LocationModal({
                     { backgroundColor: theme.colors.border },
                   ]}
                   onPress={onClose}
+                  disabled={isDetecting}
                 >
                   <Text
                     style={[styles.cancelText, { color: theme.colors.text }]}
@@ -162,6 +182,7 @@ export default function LocationModal({
                     { backgroundColor: theme.colors.primary },
                   ]}
                   onPress={handleSave}
+                  disabled={isDetecting}
                 >
                   <Text style={styles.saveText}>Save</Text>
                 </TouchableOpacity>

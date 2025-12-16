@@ -1,17 +1,10 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
-import api from "../../api/api";
 import { useTheme } from "../../context/ThemeContext";
+import { useNotifications } from "../../hooks/queries/useNotifications";
 
 export default function PerformerHomeHeader({
   user = {},
@@ -20,31 +13,9 @@ export default function PerformerHomeHeader({
   const router = useRouter();
   const { theme } = useTheme();
 
-  // Location display: prefer user.city (from API). Allow small mock "Detect" button if not present.
-  const [location, setLocation] = useState(user?.city || "");
-
-  useEffect(() => {
-    if (user?.city) setLocation(user.city);
-  }, [user?.city]);
-
-  // Notifications polling: refetchInterval simulates near real-time updates.
-  const { data: notData, isFetching } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: async () => (await api.get("/notifications")).data,
-    // poll every 5s to simulate real-time updates; change as needed
-    refetchInterval: 5000,
-    keepPreviousData: true,
-  });
-
-  const notifications = Array.isArray(notData?.data) ? notData.data : [];
+  /* ===================== NOTIFICATIONS ===================== */
+  const { data: notifications = [] } = useNotifications();
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  // Small mock detect function (you can replace with Expo Location later)
-  const handleDetectLocation = () => {
-    // simple mock: sets Mumbai after a small delay
-    setLocation("Detecting...");
-    setTimeout(() => setLocation("Mumbai"), 900);
-  };
 
   const handlePressBell = () => {
     if (typeof onPressNotifications === "function") {
@@ -61,8 +32,9 @@ export default function PerformerHomeHeader({
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.greeting, { color: theme.colors.text }]}>
-            Hello, {user?.name ? user.name.split(" ")[0] : "Mock"}!
+            Hello, {user?.name ? user.name.split(" ")[0] : "Artist"}!
           </Text>
+
           <View style={styles.locationRow}>
             <Ionicons
               name="location-outline"
@@ -75,42 +47,24 @@ export default function PerformerHomeHeader({
                 { color: theme.colors.textSecondary },
               ]}
             >
-              {location ? location : "Set your location"}
+              {user?.city || "Set your location"}
             </Text>
-
-            {/* Detect small action */}
-            {!location && (
-              <TouchableOpacity
-                onPress={handleDetectLocation}
-                style={styles.detectBtn}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[styles.detectText, { color: theme.colors.primary }]}
-                >
-                  Detect
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 
-        {/* Notification bell */}
+        {/* NOTIFICATION BELL */}
         <TouchableOpacity
           onPress={handlePressBell}
           style={styles.bellWrap}
           activeOpacity={0.8}
         >
           <View style={[styles.bellBg, { backgroundColor: theme.colors.card }]}>
-            {isFetching ? (
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            ) : (
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color={theme.colors.primary}
-              />
-            )}
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={theme.colors.primary}
+            />
+
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -133,15 +87,12 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", alignItems: "center" },
   greeting: { fontSize: 24, fontWeight: "800" },
-  locationRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
-  locationText: { marginLeft: 6, fontSize: 13 },
-  detectBtn: {
-    marginLeft: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
   },
-  detectText: { fontSize: 13, fontWeight: "700" },
+  locationText: { marginLeft: 6, fontSize: 13 },
 
   bellWrap: { marginLeft: 12 },
   bellBg: {
@@ -161,7 +112,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#FF3B30", // red badge
+    backgroundColor: "#FF3B30",
     justifyContent: "center",
     alignItems: "center",
   },

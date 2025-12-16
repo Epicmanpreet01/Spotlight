@@ -1,28 +1,39 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../context/ThemeContext';
-import { useRouter } from 'expo-router';
-import BookerLocationModal from '../../booker/home/BookerLocationModal';
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../../context/ThemeContext";
+import { useRouter } from "expo-router";
+
+import BookerLocationModal from "./BookerLocationModal";
+import { useNotifications } from "../../../hooks/queries/useNotifications";
+import { useUpdateLocationMutation } from "../../../hooks/mutations/useUpdateLocationMutation";
 
 export default function BookerHomeHeader({ user = {} }) {
   const { theme } = useTheme();
   const router = useRouter();
   const [isLocationModalOpen, setLocationModalOpen] = useState(false);
 
+  /* ===================== NOTIFICATIONS ===================== */
+  const { data: notifications = [] } = useNotifications();
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  /* ===================== LOCATION ===================== */
+  const { mutate: updateLocation } = useUpdateLocationMutation();
+
   const handlePressBell = () => {
-    router.push('/notifications'); // <-- Notification page
+    router.push("/notifications");
   };
 
   return (
     <>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
         <View style={styles.row}>
-
           {/* LEFT SIDE */}
           <View style={{ flex: 1 }}>
             <Text style={[styles.greeting, { color: theme.colors.text }]}>
-              Hello, {user?.name ? user.name.split(' ')[0] : 'User'}!
+              Hello, {user?.name ? user.name.split(" ")[0] : "User"}!
             </Text>
 
             <TouchableOpacity
@@ -41,7 +52,7 @@ export default function BookerHomeHeader({ user = {} }) {
                   { color: theme.colors.textSecondary },
                 ]}
               >
-                {user?.city || 'Set your location'}
+                {user?.city || "Set your location"}
               </Text>
 
               <Ionicons
@@ -64,18 +75,30 @@ export default function BookerHomeHeader({ user = {} }) {
               size={24}
               color={theme.colors.text}
             />
-          </TouchableOpacity>
 
+            {unreadCount > 0 && (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              >
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* LOCATION MODAL */}
       <BookerLocationModal
         visible={isLocationModalOpen}
-        initialCity={user?.city || ''}
+        initialCity={user?.city || ""}
         onClose={() => setLocationModalOpen(false)}
         onSave={({ cityState }) => {
-          // handle saving later if needed
+          updateLocation({ city: cityState });
           setLocationModalOpen(false);
         }}
       />
@@ -90,16 +113,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   greeting: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 6,
   },
   locationText: {
@@ -109,7 +132,24 @@ const styles = StyleSheet.create({
   bellWrap: {
     width: 44,
     height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });
