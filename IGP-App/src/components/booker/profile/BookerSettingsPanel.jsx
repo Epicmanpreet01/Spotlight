@@ -1,4 +1,3 @@
-// src/components/booker/profile/BookerSettingsPanel.jsx
 import React, { useState } from "react";
 import {
   View,
@@ -9,11 +8,15 @@ import {
   Alert,
 } from "react-native";
 import { useTheme } from "../../../context/ThemeContext";
-import api from "../../../api/api";
+
+/* ===================== HOOK ===================== */
+import { useLogoutMutation } from "../../../hooks/mutations/useAuthMutation";
 
 export default function BookerSettingsPanel({ onLogout = () => {} }) {
   const { theme, toggleTheme } = useTheme();
   const [darkOn, setDarkOn] = useState(theme.isDark);
+
+  const logoutMutation = useLogoutMutation();
 
   const onDarkToggle = () => {
     setDarkOn((prev) => !prev);
@@ -21,12 +24,17 @@ export default function BookerSettingsPanel({ onLogout = () => {} }) {
   };
 
   const handleLogout = () => {
-    try {
-      if (api && api.setAuthToken) api.setAuthToken(null);
-    } catch (e) {}
-
-    Alert.alert("Logout", "You have been logged out.");
-    onLogout();
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await logoutMutation.mutateAsync();
+          onLogout();
+        },
+      },
+    ]);
   };
 
   return (
@@ -90,13 +98,17 @@ export default function BookerSettingsPanel({ onLogout = () => {} }) {
       <TouchableOpacity
         style={[styles.logoutBtn, { backgroundColor: theme.colors.primary }]}
         onPress={handleLogout}
+        disabled={logoutMutation.isLoading}
       >
-        <Text style={styles.logoutText}>Logout</Text>
+        <Text style={styles.logoutText}>
+          {logoutMutation.isLoading ? "Logging out..." : "Logout"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   card: {
     borderRadius: 14,

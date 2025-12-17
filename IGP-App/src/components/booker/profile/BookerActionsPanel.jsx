@@ -1,5 +1,4 @@
-// src/components/booker/profile/BookerActionsPanel.jsx
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,36 +9,33 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../context/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../../api/api";
+import { useRouter } from "expo-router";
+
+/* ===================== HOOKS ===================== */
+import { useMyGigsQuery } from "../../../hooks/queries/useGigs";
+
+/* ===================== COMPONENTS ===================== */
 import BookerBookingScreen from "./BookerBookingScreen";
 import BookerEventPreviewCard from "../events/BookerEventPreviewCard";
-import { useRouter } from "expo-router";
 
 export default function BookerActionsPanel() {
   const { theme } = useTheme();
+  const router = useRouter();
+
   const [showBookings, setShowBookings] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
 
-  const router = useRouter();
+  /* ===================== DATA ===================== */
+  const { data: gigsResp } = useMyGigsQuery(true);
+  const gigs = gigsResp?.data || [];
 
-  const { data: eventsResp } = useQuery({
-    queryKey: ["bookerEvents"],
-    queryFn: async () => (await api.get("/booker/events")).data,
-  });
-
-  const events = eventsResp?.data || [];
-
-  /* ================= CURRENT EVENTS ================= */
-  const { data: gigsResp } = useQuery({
-    queryKey: ["bookerCurrentEvents"],
-    queryFn: async () => (await api.get("/gigs")).data,
-    retry: false,
-  });
-
-  const currentEvents = (gigsResp?.data || []).filter(
-    (g) => new Date(g.eventDate?.start) >= new Date()
-  );
+  /* ===================== CURRENT EVENTS ===================== */
+  const currentEvents = useMemo(() => {
+    const now = new Date();
+    return gigs.filter(
+      (g) => new Date(g.eventDate?.start) >= now && g.status !== "closed"
+    );
+  }, [gigs]);
 
   return (
     <>
@@ -58,7 +54,7 @@ export default function BookerActionsPanel() {
         <Text style={styles.actionText}>Current Performers / Events</Text>
       </TouchableOpacity>
 
-      {/* ===== SPACING BEFORE SETTINGS (FIX) ===== */}
+      {/* ===== SPACING BEFORE SETTINGS ===== */}
       <View style={{ height: 22 }} />
 
       {/* ================= BOOKINGS SCREEN ================= */}
@@ -82,7 +78,7 @@ export default function BookerActionsPanel() {
           />
 
           <FlatList
-            data={events}
+            data={currentEvents}
             keyExtractor={(i) => i._id}
             contentContainerStyle={{ padding: 20 }}
             renderItem={({ item }) => (
@@ -101,6 +97,7 @@ export default function BookerActionsPanel() {
                 style={{
                   textAlign: "center",
                   color: theme.colors.textSecondary,
+                  marginTop: 40,
                 }}
               >
                 No current events
@@ -120,9 +117,11 @@ function Header({ title, onClose, theme }) {
       <TouchableOpacity onPress={onClose}>
         <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
       </TouchableOpacity>
+
       <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
         {title}
       </Text>
+
       <View style={{ width: 24 }} />
     </View>
   );
@@ -155,12 +154,4 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-
-  card: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 14,
-  },
-  title: { fontSize: 15, fontWeight: "700" },
-  meta: { marginTop: 6, fontSize: 13 },
 });

@@ -1,5 +1,5 @@
 // src/components/profile/CurrentGigsScreen.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -10,112 +10,142 @@ import {
   Image,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../api/api";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+
+/* ===================== HOOKS ===================== */
+import { useMyBookingsQuery } from "../../hooks/queries/useBookings";
 
 export default function CurrentGigsScreen({ visible, onClose }) {
   const { theme } = useTheme();
   const router = useRouter();
 
-  const { data } = useQuery({
-    queryKey: ["current-gigs-performer"],
-    queryFn: async () => (await api.get("/booker/events")).data,
-  });
+  /* ===================== DATA ===================== */
+  const { data: bookingsResp, isLoading } = useMyBookingsQuery(visible);
+  const bookings = bookingsResp?.data || [];
 
-  const gigs = data?.data || [];
+  /* ===================== DERIVED: CURRENT GIGS ===================== */
+  const currentGigs = useMemo(() => {
+    return bookings.filter((b) => ["confirmed", "pending"].includes(b.status));
+  }, [bookings]);
 
   return (
     <Modal visible={visible} animationType="slide">
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        {/* HEADER */}
+        {/* ================= HEADER ================= */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
           </TouchableOpacity>
+
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Current Gigs
           </Text>
+
           <View style={{ width: 24 }} />
         </View>
 
-        {/* GIG LIST */}
+        {/* ================= LIST ================= */}
         <FlatList
-          data={gigs}
+          data={currentGigs}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              style={[styles.card, { backgroundColor: theme.colors.card }]}
-              onPress={() => router.push(`/performer/gig-preview/${item._id}`)}
-            >
-              {/* IMAGE */}
-              {item.image && (
-                <Image source={{ uri: item.image }} style={styles.banner} />
-              )}
+          renderItem={({ item }) => {
+            const gig = item.gig;
 
-              {/* CONTENT */}
-              <View style={styles.body}>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-                  {item.title}
-                </Text>
+            if (!gig) return null;
 
-                {/* LOCATION */}
-                <View style={styles.row}>
-                  <Ionicons
-                    name="location-outline"
-                    size={16}
-                    color={theme.colors.primary}
+            const eventDate = item.eventDate?.start
+              ? new Date(item.eventDate.start)
+              : null;
+
+            return (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.card, { backgroundColor: theme.colors.card }]}
+                onPress={() => router.push(`/performer/gig-preview/${gig._id}`)}
+              >
+                {/* IMAGE */}
+                {gig.previewImage && (
+                  <Image
+                    source={{ uri: gig.previewImage }}
+                    style={styles.banner}
                   />
+                )}
+
+                {/* CONTENT */}
+                <View style={styles.body}>
                   <Text
-                    style={[styles.meta, { color: theme.colors.textSecondary }]}
+                    style={[styles.cardTitle, { color: theme.colors.text }]}
                   >
-                    {item.location.address}, {item.location.city}
+                    {gig.title}
                   </Text>
-                </View>
 
-                {/* DATE & TIME */}
-                <View style={styles.row}>
-                  <Ionicons
-                    name="time-outline"
-                    size={16}
-                    color={theme.colors.primary}
-                  />
+                  {/* LOCATION */}
+                  <View style={styles.row}>
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color={theme.colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.meta,
+                        { color: theme.colors.textSecondary },
+                      ]}
+                    >
+                      {gig.location?.address || "Location not specified"}
+                    </Text>
+                  </View>
+
+                  {/* DATE */}
+                  {eventDate && (
+                    <View style={styles.row}>
+                      <Ionicons
+                        name="time-outline"
+                        size={16}
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.meta,
+                          { color: theme.colors.textSecondary },
+                        ]}
+                      >
+                        {eventDate.toLocaleDateString()} •{" "}
+                        {eventDate.getHours()}:00
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* DESCRIPTION */}
                   <Text
-                    style={[styles.meta, { color: theme.colors.textSecondary }]}
+                    style={[styles.desc, { color: theme.colors.textSecondary }]}
+                    numberOfLines={2}
                   >
-                    {new Date(item.eventDate.start).toLocaleDateString()} •{" "}
-                    {new Date(item.eventDate.start).getHours()}:00
+                    {gig.description || "No description available"}
                   </Text>
+
+                  {/* BUDGET */}
+                  <Text style={styles.budget}>₹{gig.budget}</Text>
                 </View>
-
-                {/* DESCRIPTION */}
-                <Text
-                  style={[styles.desc, { color: theme.colors.textSecondary }]}
-                  numberOfLines={2}
-                >
-                  {item.description}
-                </Text>
-
-                {/* BUDGET */}
-                <Text style={styles.budget}>₹{item.budget}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+              </TouchableOpacity>
+            );
+          }}
           ListEmptyComponent={
-            <Text
-              style={{
-                textAlign: "center",
-                color: theme.colors.textSecondary,
-                marginTop: 40,
-              }}
-            >
-              No current gigs
-            </Text>
+            !isLoading && (
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: theme.colors.textSecondary,
+                  marginTop: 40,
+                }}
+              >
+                No current gigs
+              </Text>
+            )
           }
         />
       </View>
@@ -123,6 +153,7 @@ export default function CurrentGigsScreen({ visible, onClose }) {
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
 

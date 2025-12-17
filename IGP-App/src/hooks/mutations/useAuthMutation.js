@@ -1,8 +1,8 @@
-import { useMutation } from "@tanstack/react-query";
-import { loginUser, signupUser } from "../../api/auth.api.js";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { loginUser, signupUser, logoutUser } from "../../api/auth.api.js";
 import Toast from "react-native-toast-message";
 import { setAuthToken, getBackendErrorMessage } from "../../api/api.js";
-import { router } from "expo-router";
+import { router, useRouter } from "expo-router";
 
 export function useSignupMutation() {
   return useMutation({
@@ -63,3 +63,32 @@ export function useSigninMutation() {
     },
   });
 }
+
+export const useLogoutMutation = () => {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: logoutUser,
+
+    onSuccess: async () => {
+      await setAuthToken(null);
+      queryClient.clear();
+
+      router.replace("/(auth)/sign-in");
+
+      Toast.show({
+        type: "success",
+        text1: "Logged out",
+      });
+    },
+
+    onError: async () => {
+      // Even if backend fails, logout locally
+      await setAuthToken(null);
+      queryClient.clear();
+
+      router.replace("/(auth)/sign-in");
+    },
+  });
+};

@@ -1,49 +1,68 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useTheme } from '../../context/ThemeContext';
+// src/components/profile/PerformerBookingItem.jsx
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useTheme } from "../../context/ThemeContext";
 
-export default function PerformerBookingItem({ booking, onPress }) {
+export default function PerformerBookingItem({ booking = {}, onPress }) {
   const { theme } = useTheme();
 
+  const status = booking?.status || "pending";
+
   const statusColor =
-    booking.status === 'confirmed'
-      ? '#2E7D32'
-      : booking.status === 'pending'
-      ? '#FF9800'
-      : '#D32F2F';
+    status === "confirmed"
+      ? "#2E7D32"
+      : status === "pending"
+      ? "#FF9800"
+      : "#D32F2F";
+
+  const title = booking?.gig?.title || "Event";
+  const address = booking?.gig?.location?.address || "Location";
+  const date = booking?.eventDate?.start
+    ? new Date(booking.eventDate.start).toLocaleDateString()
+    : "Date";
+
+  const totalPrice = booking?.totalPrice ?? "--";
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={[styles.card, { borderColor: theme.colors.border }]}
+      onPress={onPress}
+    >
       <View>
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          {booking.gig.title}
+          {title}
         </Text>
+
         <Text style={{ color: theme.colors.textSecondary }}>
-          {new Date(booking.eventDate.start).toLocaleDateString()} •{' '}
-          {booking.gig.location.address}
+          {date} • {address}
         </Text>
       </View>
 
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ color: statusColor, fontWeight: '700' }}>
-          {booking.status.toUpperCase()}
+      <View style={{ alignItems: "flex-end" }}>
+        <Text style={{ color: statusColor, fontWeight: "700" }}>
+          {status.toUpperCase()}
         </Text>
-        <Text style={{ marginTop: 6, fontWeight: '700', color: '#FF6F00' }}>
-          ₹{booking.totalPrice}
+
+        <Text style={{ marginTop: 6, fontWeight: "700", color: "#FF6F00" }}>
+          ₹{totalPrice}
         </Text>
       </View>
     </TouchableOpacity>
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   card: {
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderColor: '#ddd',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  title: { fontSize: 16, fontWeight: '700' },
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
 });

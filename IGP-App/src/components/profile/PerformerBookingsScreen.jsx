@@ -1,3 +1,4 @@
+// src/components/profile/PerformerBookingScreen.jsx
 import React, { useState } from "react";
 import {
   View,
@@ -8,27 +9,28 @@ import {
   Modal,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../api/api";
-import PerformerBookingItem from "./PerformerBookingItem";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-export default function PerformerBookingScreen({ visible, onClose }) {
+/* ===================== HOOKS ===================== */
+import { useMyBookingsQuery } from "../../hooks/queries/useBookings";
+
+/* ===================== COMPONENTS ===================== */
+import PerformerBookingItem from "./PerformerBookingItem";
+
+export default function PerformerBookingScreen({ visible = false, onClose }) {
   const { theme } = useTheme();
   const [tab, setTab] = useState("current");
   const router = useRouter();
 
-  const { data } = useQuery({
-    queryKey: ["performerBookings"],
-    queryFn: async () => (await api.get("/booking/my-bookings")).data,
-  });
-
-  const bookings = data?.data || [];
+  /* ===================== DATA ===================== */
+  const { data: bookingsResp } = useMyBookingsQuery(visible);
+  const bookings = bookingsResp?.data || [];
 
   const current = bookings.filter((b) =>
     ["pending", "confirmed"].includes(b.status)
   );
+
   const past = bookings.filter((b) =>
     ["completed", "cancelled", "declined"].includes(b.status)
   );
@@ -38,18 +40,20 @@ export default function PerformerBookingScreen({ visible, onClose }) {
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        {/* HEADER */}
+        {/* ================= HEADER ================= */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
           </TouchableOpacity>
+
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Bookings
           </Text>
+
           <View style={{ width: 24 }} />
         </View>
 
-        {/* TABS */}
+        {/* ================= TABS ================= */}
         <View style={styles.tabs}>
           {["current", "past"].map((t) => (
             <TouchableOpacity
@@ -67,7 +71,7 @@ export default function PerformerBookingScreen({ visible, onClose }) {
           ))}
         </View>
 
-        {/* LIST */}
+        {/* ================= LIST ================= */}
         <FlatList
           data={tab === "current" ? current : past}
           keyExtractor={(item) => item._id}
@@ -82,12 +86,24 @@ export default function PerformerBookingScreen({ visible, onClose }) {
               }
             />
           )}
+          ListEmptyComponent={
+            <Text
+              style={{
+                textAlign: "center",
+                marginTop: 24,
+                color: theme.colors.textSecondary,
+              }}
+            >
+              No bookings found
+            </Text>
+          }
         />
       </View>
     </Modal>
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {

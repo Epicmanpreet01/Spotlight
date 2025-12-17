@@ -1,4 +1,3 @@
-// app/(tabs)/profile.jsx
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -8,68 +7,57 @@ import {
   Text,
   TouchableOpacity,
 } from "react-native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "../../src/api/api";
 import { useTheme } from "../../src/context/ThemeContext";
+import { useQueryClient } from "@tanstack/react-query";
 
+/* ===================== HOOKS ===================== */
+import { useCurrentUser } from "../../src/hooks/queries/useAuth";
+import { useMyBookingsQuery } from "../../src/hooks/queries/useBookings";
+import { useMyGigsQuery } from "../../src/hooks/queries/useGigs";
+import { useUpdatePerformerProfileMutation } from "../../src/hooks/mutations/usePerformerMutation";
+
+/* ===================== COMPONENTS ===================== */
 import {
   ProfileHeader,
   PortfolioCard,
-  BookingHistoryItem,
   CurrentGigsScreen,
   PerformerBookingsScreen,
   SettingsPanel,
 } from "../../src/components/profile";
 
 import { BookerActionsPanel } from "../../src/components/booker/profile";
-
-// Booker profile components
 import BookerProfileHeader from "../../src/components/booker/profile/BookerProfileHeader";
 import BookerSettingsPanel from "../../src/components/booker/profile/BookerSettingsPanel";
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen() {
   const { theme } = useTheme();
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
+
   const [showGigs, setShowGigs] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
 
-  const { data: userResp } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      try {
-        return (await api.get("/auth/me")).data;
-      } catch (e) {
-        return null;
-      }
-    },
-    retry: false,
-  });
+  /* ===================== USER ===================== */
+  const { data: me } = useCurrentUser();
+  const user = me?.data;
+  const role = user?.role;
 
-  const { data: bookingsResp } = useQuery({
-    queryKey: ["myBookings"],
-    queryFn: async () => (await api.get("/booking/my-bookings")).data,
-    enabled: !!userResp,
-    retry: false,
-  });
-
-  const user = userResp?.data;
+  /* ===================== DATA ===================== */
+  const { data: bookingsResp } = useMyBookingsQuery(!!user);
   const bookings = bookingsResp?.data || [];
 
-  const saveProfile = useMutation({
-    mutationFn: async (payload) =>
-      await api.put("/performers/profile", payload),
-    onSuccess: () => qc.invalidateQueries(["currentUser"]),
-  });
+  const { data: gigsResp } = useMyGigsQuery(role === "booker");
+  const gigs = gigsResp?.data || [];
 
+  const updateProfile = useUpdatePerformerProfileMutation();
+
+  /* ===================== LOGOUT ===================== */
   const handleLogout = () => {
-    try {
-      if (api.setAuthToken) api.setAuthToken(null);
-    } catch (e) {}
+    queryClient.clear();
+    // auth guard / root layout handles redirect
   };
 
-  // If booker -> show booker profile layout (no portfolio)
-  // Booker profile
-  if (user?.role === "booker") {
+  /* ===================== BOOKER PROFILE ===================== */
+  if (role === "booker") {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -86,11 +74,23 @@ export default function ProfileScreen({ navigation }) {
 
           <BookerSettingsPanel onLogout={handleLogout} />
         </ScrollView>
+
+        <CurrentGigsScreen
+          visible={showGigs}
+          onClose={() => setShowGigs(false)}
+          gigs={gigs}
+        />
+
+        <PerformerBookingsScreen
+          visible={showBookings}
+          onClose={() => setShowBookings(false)}
+          bookings={bookings}
+        />
       </SafeAreaView>
     );
   }
 
-  // Performer profile (unchanged)
+  /* ===================== PERFORMER PROFILE ===================== */
   if (!user) {
     return (
       <SafeAreaView
@@ -112,14 +112,14 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
         <ProfileHeader
           user={user}
-          onUpdated={() => qc.invalidateQueries(["currentUser"])}
+          onUpdated={() => queryClient.invalidateQueries(["currentUser"])}
         />
 
         <View style={{ height: 12 }} />
 
         <PortfolioCard
           profile={user.profile || {}}
-          onSave={(payload) => saveProfile.mutate(payload)}
+          onSave={(payload) => updateProfile.mutate(payload)}
         />
 
         <View style={{ marginTop: 18 }}>
@@ -147,11 +147,11 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* Full screen pages (modals) */}
       <CurrentGigsScreen
         visible={showGigs}
         onClose={() => setShowGigs(false)}
       />
+
       <PerformerBookingsScreen
         visible={showBookings}
         onClose={() => setShowBookings(false)}

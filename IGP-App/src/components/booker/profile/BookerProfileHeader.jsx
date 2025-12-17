@@ -1,5 +1,3 @@
-// src/components/booker/profile/BookerProfileHeader.jsx
-
 import React, { useState } from "react";
 import {
   View,
@@ -13,9 +11,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../context/ThemeContext";
-import api from "../../../api/api";
 import Colors from "../../../constants/Colors";
 import * as ImagePicker from "expo-image-picker";
+
+/* ===================== HOOKS ===================== */
+import {
+  useUpdateUserProfileMutation,
+  useUpdateUserProfileImageMutation,
+} from "../../../hooks/mutations/useUserMutation";
 
 export default function BookerProfileHeader({
   user = {},
@@ -26,13 +29,20 @@ export default function BookerProfileHeader({
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [profileImage, setProfileImage] = useState(user?.profileImage || null);
-  const [saving, setSaving] = useState(false);
 
-  /* ------------------- Image Picker ------------------- */
+  /* ===================== MUTATIONS ===================== */
+  const updateProfileMutation = useUpdateUserProfileMutation();
+  const updateImageMutation = useUpdateUserProfileImageMutation();
+
+  const saving =
+    updateProfileMutation.isLoading || updateImageMutation.isLoading;
+
+  /* ===================== IMAGE PICKER ===================== */
   const pickImageFromLibrary = async () => {
     try {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (status !== "granted") {
         Alert.alert(
           "Permission required",
@@ -47,49 +57,52 @@ export default function BookerProfileHeader({
       });
 
       if (!res.canceled) {
-        setProfileImage(res.assets[0].uri);
+        setProfileImage(res.assets[0]);
       }
-    } catch (err) {
+    } catch {
       Alert.alert("Error", "Unable to open gallery.");
     }
   };
 
-  /* ------------------- Save API ------------------- */
+  /* ===================== SAVE ===================== */
   const save = async () => {
-    setSaving(true);
     try {
-      // Booker: Update basic details
-      await api.put("/users/profile", { name });
+      // Update name
+      if (name !== user?.name) {
+        await updateProfileMutation.mutateAsync({ name });
+      }
 
-      // Booker: Update image if changed
-      if (profileImage) {
-        await api.put("/users/update-image", { imageUrl: profileImage });
+      // Update profile image
+      if (profileImage && profileImage.uri) {
+        await updateImageMutation.mutateAsync(profileImage);
       }
 
       Alert.alert("Success", "Profile updated.");
       setEditOpen(false);
       onUpdated();
-    } catch (err) {
+    } catch {
       Alert.alert("Error", "Could not update profile.");
-    } finally {
-      setSaving(false);
     }
   };
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-      {/* Avatar */}
+      {/* ================= AVATAR ================= */}
       <View style={styles.left}>
         <View style={[styles.avatar, { backgroundColor: Colors.secondary }]}>
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.avatarImg} />
+          {profileImage?.uri || user?.profileImage ? (
+            <Image
+              source={{
+                uri: profileImage?.uri || user?.profileImage,
+              }}
+              style={styles.avatarImg}
+            />
           ) : (
             <Text style={styles.avatarText}>
               {(user?.name || "U").charAt(0)}
             </Text>
           )}
 
-          {/* Edit Button */}
           <TouchableOpacity
             style={styles.camBtn}
             onPress={() => setEditOpen(true)}
@@ -99,11 +112,11 @@ export default function BookerProfileHeader({
         </View>
       </View>
 
-      {/* Name / Email / City */}
+      {/* ================= INFO ================= */}
       <View style={styles.right}>
         <View style={styles.topRow}>
           <Text style={[styles.name, { color: theme.colors.text }]}>
-            {user.name}
+            {user?.name}
           </Text>
 
           <TouchableOpacity onPress={() => setEditOpen(true)}>
@@ -122,7 +135,7 @@ export default function BookerProfileHeader({
             color={theme.colors.textSecondary}
           />
           <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
-            {user.city || "Add your city"}
+            {user?.city || "Add your city"}
           </Text>
         </View>
 
@@ -132,11 +145,11 @@ export default function BookerProfileHeader({
             { color: theme.colors.textSecondary, marginTop: 4 },
           ]}
         >
-          {user.email}
+          {user?.email}
         </Text>
       </View>
 
-      {/* EDIT MODAL */}
+      {/* ================= EDIT MODAL ================= */}
       <Modal visible={editOpen} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View
@@ -146,11 +159,13 @@ export default function BookerProfileHeader({
               Edit Profile
             </Text>
 
-            {/* Name Input */}
+            {/* Name */}
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
               Full Name
             </Text>
             <TextInput
+              value={name}
+              onChangeText={setName}
               placeholder="Enter your name"
               placeholderTextColor={theme.colors.textSecondary}
               style={[
@@ -160,11 +175,9 @@ export default function BookerProfileHeader({
                   color: theme.colors.text,
                 },
               ]}
-              value={name}
-              onChangeText={setName}
             />
 
-            {/* Image Picker */}
+            {/* Image */}
             <Text
               style={[
                 styles.label,
@@ -175,9 +188,11 @@ export default function BookerProfileHeader({
             </Text>
 
             <View style={styles.imageRow}>
-              {profileImage ? (
+              {profileImage?.uri || user?.profileImage ? (
                 <Image
-                  source={{ uri: profileImage }}
+                  source={{
+                    uri: profileImage?.uri || user?.profileImage,
+                  }}
                   style={styles.previewImg}
                 />
               ) : (
@@ -193,7 +208,7 @@ export default function BookerProfileHeader({
               </TouchableOpacity>
             </View>
 
-            {/* Buttons */}
+            {/* Actions */}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.btnGhost}
@@ -221,8 +236,7 @@ export default function BookerProfileHeader({
   );
 }
 
-/* ===================== STYLES ===================== */
-
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
@@ -231,9 +245,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     alignItems: "center",
   },
-
   left: { marginRight: 12 },
-
   avatar: {
     width: 64,
     height: 64,
@@ -245,7 +257,6 @@ const styles = StyleSheet.create({
   },
   avatarImg: { width: 64, height: 64, borderRadius: 32 },
   avatarText: { color: "#fff", fontSize: 24, fontWeight: "700" },
-
   camBtn: {
     position: "absolute",
     right: -0.1,
@@ -259,45 +270,32 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-
   right: { flex: 1 },
-
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   name: { fontSize: 18, fontWeight: "700" },
-
   locationRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
-
   meta: { fontSize: 13 },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     paddingHorizontal: 20,
   },
-
   modalCard: { borderRadius: 14, padding: 20 },
-
   modalTitle: { fontSize: 18, fontWeight: "700" },
-
   label: { marginTop: 12, fontSize: 12, fontWeight: "600" },
-
   input: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
     marginTop: 6,
   },
-
   imageRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-
   previewImg: { width: 72, height: 72, borderRadius: 36 },
-
   emptyPreview: {
     width: 72,
     height: 72,
@@ -306,7 +304,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   btnPrimarySmall: {
     backgroundColor: "#1976D2",
     paddingHorizontal: 14,
@@ -315,20 +312,17 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   btnPrimarySmallText: { color: "#fff", fontWeight: "700" },
-
   modalActions: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 20,
   },
-
   btnGhost: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
     backgroundColor: "#EEE",
   },
-
   btnPrimary: {
     paddingVertical: 12,
     paddingHorizontal: 20,

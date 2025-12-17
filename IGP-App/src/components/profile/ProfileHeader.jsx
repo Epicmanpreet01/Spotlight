@@ -12,23 +12,35 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
-import api from "../../api/api";
 import Colors from "../../constants/Colors";
-
-// Optional: use expo-image-picker to let user pick actual phone images
 import * as ImagePicker from "expo-image-picker";
+
+/* ===================== MUTATION HOOKS ===================== */
+import {
+  useUpdateUserProfileMutation,
+  useUpdateUserProfileImageMutation,
+} from "../../hooks/mutations/useUserMutation";
 
 export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
   const { theme } = useTheme();
+
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(user?.name || "");
-  const [profileImage, setProfileImage] = useState(user?.profileImage || null);
-  const [saving, setSaving] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
 
+  /* ===================== MUTATIONS ===================== */
+  const updateProfileMutation = useUpdateUserProfileMutation();
+  const updateImageMutation = useUpdateUserProfileImageMutation();
+
+  const saving =
+    updateProfileMutation.isLoading || updateImageMutation.isLoading;
+
+  /* ===================== IMAGE PICKER ===================== */
   const pickImageFromLibrary = async () => {
     try {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (status !== "granted") {
         Alert.alert(
           "Permission required",
@@ -36,45 +48,53 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
         );
         return;
       }
+
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.7,
       });
-      if (!res.cancelled) {
-        setProfileImage(res.uri);
+
+      if (!res.canceled) {
+        setProfileImage(res.assets[0]);
       }
     } catch (e) {
-      console.warn("image pick error", e);
       Alert.alert("Error", "Unable to open gallery.");
     }
   };
 
+  /* ===================== SAVE ===================== */
   const save = async () => {
-    setSaving(true);
     try {
-      // update performer name and city via performers/profile endpoint (mock)
-      await api.put("/performers/profile", { name });
-
-      // if profileImage is updated, call image update endpoint (mock)
-      if (profileImage) {
-        await api.put("/booking/updateUserImage", { imageUrl: profileImage });
+      // Update name (User)
+      if (name !== user?.name) {
+        await updateProfileMutation.mutateAsync({ name });
       }
 
-      Alert.alert("Saved", "Profile updated (mock).");
+      // Update profile image (User)
+      if (profileImage?.uri) {
+        await updateImageMutation.mutateAsync(profileImage);
+      }
+
+      Alert.alert("Saved", "Profile updated successfully.");
       setEditOpen(false);
-    } catch (e) {
-      Alert.alert("Error", "Failed to save (mock).");
-    } finally {
-      setSaving(false);
+      onEdit();
+    } catch {
+      Alert.alert("Error", "Failed to update profile.");
     }
   };
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+      {/* ================= AVATAR ================= */}
       <View style={styles.left}>
         <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.avatarImg} />
+          {profileImage?.uri || user?.profileImage ? (
+            <Image
+              source={{
+                uri: profileImage?.uri || user?.profileImage,
+              }}
+              style={styles.avatarImg}
+            />
           ) : (
             <Text style={styles.avatarText}>
               {(user?.name || "J").charAt(0)}
@@ -90,6 +110,7 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
         </View>
       </View>
 
+      {/* ================= INFO ================= */}
       <View style={styles.right}>
         <View
           style={{
@@ -138,7 +159,7 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
         </Text>
       </View>
 
-      {/* Edit modal */}
+      {/* ================= EDIT MODAL ================= */}
       <Modal visible={editOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View
@@ -178,6 +199,7 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
             >
               Profile Photo
             </Text>
+
             <View
               style={{
                 flexDirection: "row",
@@ -185,9 +207,11 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
                 marginTop: 8,
               }}
             >
-              {profileImage ? (
+              {profileImage?.uri || user?.profileImage ? (
                 <Image
-                  source={{ uri: profileImage }}
+                  source={{
+                    uri: profileImage?.uri || user?.profileImage,
+                  }}
                   style={{ width: 72, height: 72, borderRadius: 36 }}
                 />
               ) : (
@@ -209,7 +233,7 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
                 style={{ marginLeft: 12 }}
                 onPress={pickImageFromLibrary}
               >
-                <View style={[styles.btnPrimarySmall]}>
+                <View style={styles.btnPrimarySmall}>
                   <Text style={{ color: "#fff", fontWeight: "700" }}>
                     Choose Photo
                   </Text>
@@ -225,15 +249,16 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
               }}
             >
               <TouchableOpacity
-                style={[styles.btnGhost]}
+                style={styles.btnGhost}
                 onPress={() => setEditOpen(false)}
               >
                 <Text style={{ color: theme.colors.textSecondary }}>
                   Cancel
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.btnPrimary]}
+                style={styles.btnPrimary}
                 onPress={save}
                 disabled={saving}
               >
@@ -249,6 +274,7 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
@@ -285,11 +311,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-
   right: { flex: 1 },
   name: { fontSize: 18, fontWeight: "700" },
   meta: { fontSize: 13 },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -305,7 +329,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-
   btnGhost: {
     paddingVertical: 12,
     paddingHorizontal: 20,

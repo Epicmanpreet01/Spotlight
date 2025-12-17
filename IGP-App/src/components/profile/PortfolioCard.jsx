@@ -11,62 +11,92 @@ import {
   Alert,
   Modal,
   Pressable,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
-import api from "../../api/api";
+import * as ImagePicker from "expo-image-picker";
 
-const { width } = Dimensions.get("window");
+/* ===================== HOOKS ===================== */
+import {
+  useUpdatePerformerProfileMutation,
+  useAddGalleryImagesMutation,
+  useRemoveGalleryImageMutation,
+} from "../../hooks/mutations/usePerformerMutation";
 
-export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
+export default function PortfolioCard({ profile = {} }) {
   const { theme } = useTheme();
   const [editing, setEditing] = useState(false);
 
+  /* ===================== STATE ===================== */
   const [stageName, setStageName] = useState(profile?.bandName || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [price, setPrice] = useState(
     profile?.priceStartingAt ? String(profile.priceStartingAt) : ""
   );
-  const [images, setImages] = useState(profile?.galleryImages?.slice() || []);
+  const initialImages = Array.isArray(profile?.galleryImages)
+    ? [...profile.galleryImages]
+    : [];
 
+  const [images, setImages] = useState(initialImages);
   const [previewImage, setPreviewImage] = useState(null);
 
-  // Mock add image (in real app you would open image-picker)
-  const addImageMock = () => {
-    if (images.length >= 10)
-      return Alert.alert("Limit", "Maximum 10 images allowed.");
-    const newImg =
-      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=900&q=80";
-    setImages((prev) => [...prev, newImg]);
-  };
+  /* ===================== MUTATIONS ===================== */
+  const updateProfileMutation = useUpdatePerformerProfileMutation();
+  const addImagesMutation = useAddGalleryImagesMutation();
+  const removeImageMutation = useRemoveGalleryImageMutation();
 
-  const removeImage = (idx) => {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const saving =
+    updateProfileMutation.isLoading ||
+    addImagesMutation.isLoading ||
+    removeImageMutation.isLoading;
 
-  const save = () => {
-    const payload = {
-      bandName: stageName,
-      bio,
-      priceStartingAt: Number(price || 0),
-      galleryImages: images,
-    };
-    try {
-      onSave(payload); // parent handles API update (your Profile screen uses mutation)
-      setEditing(false);
-      Alert.alert("Saved", "Portfolio saved (mock).");
-    } catch (err) {
-      Alert.alert("Error", "Failed to save.");
+  /* ===================== IMAGE PICKER ===================== */
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Allow gallery access");
+      return;
+    }
+
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!res.canceled) {
+      await addImagesMutation.mutateAsync(res.assets);
     }
   };
 
-  const renderImageItem = ({ item, index }) => (
+  /* ===================== REMOVE IMAGE ===================== */
+  const removeImage = async (imageUrl) => {
+    try {
+      await removeImageMutation.mutateAsync({ imageUrl });
+    } catch {}
+  };
+
+  /* ===================== SAVE ===================== */
+  const save = async () => {
+    try {
+      await updateProfileMutation.mutateAsync({
+        bandName: stageName,
+        bio,
+        priceStartingAt: Number(price || 0),
+      });
+
+      Alert.alert("Saved", "Portfolio updated successfully");
+      setEditing(false);
+    } catch {
+      Alert.alert("Error", "Failed to save portfolio");
+    }
+  };
+
+  /* ===================== IMAGE ITEM ===================== */
+  const renderImageItem = ({ item }) => (
     <View style={styles.imageWrapper}>
-      <Pressable
-        onPress={() => setPreviewImage(item)}
-        style={{ borderRadius: 10, overflow: "hidden" }}
-      >
+      <Pressable onPress={() => setPreviewImage(item)}>
         <Image
           source={{ uri: item }}
           style={[
@@ -79,8 +109,7 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
       {editing && (
         <TouchableOpacity
           style={styles.removeBtn}
-          onPress={() => removeImage(index)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => removeImage(item)}
         >
           <View style={styles.removeCircle}>
             <Text style={styles.removeX}>✕</Text>
@@ -92,6 +121,7 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+      {/* ================= HEADER ================= */}
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: theme.colors.text }]}>
           Portfolio
@@ -105,6 +135,7 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
         </TouchableOpacity>
       </View>
 
+      {/* ================= INFO ================= */}
       <View style={{ marginTop: 12 }}>
         <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
           Stage Name
@@ -131,51 +162,38 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
           Starting Price (₹)
         </Text>
         <Text style={[styles.value, { color: theme.colors.text }]}>
-          {profile?.priceStartingAt ? `₹${profile.priceStartingAt}` : "-"}
+          {price ? `₹${price}` : "-"}
         </Text>
       </View>
 
+      {/* ================= GALLERY ================= */}
       <View style={{ marginTop: 12 }}>
         <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
           Gallery
         </Text>
 
-        {/* Non-edit mode: show images (if any) in small size */}
-        {!editing && images.length === 0 && (
-          <View style={{ marginTop: 12 }}>
-            <Text style={{ color: theme.colors.textSecondary }}>
-              No gallery images yet.
-            </Text>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
-              Tap Edit to add images.
-            </Text>
-          </View>
-        )}
-
-        <View style={{ marginTop: 8 }}>
-          <FlatList
-            data={images}
-            horizontal
-            keyExtractor={(i, idx) => String(idx)}
-            renderItem={renderImageItem}
-            ListFooterComponent={() => (
-              <TouchableOpacity
-                onPress={() => (editing ? addImageMock() : setEditing(true))}
-                style={[
-                  styles.addSquare,
-                  editing ? styles.addSquareLarge : styles.addSquareSmall,
-                ]}
-              >
-                <Ionicons name="add" size={26} color="#fff" />
-              </TouchableOpacity>
-            )}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 6 }}
-          />
-        </View>
+        <FlatList
+          data={images}
+          horizontal
+          keyExtractor={(i) => i}
+          renderItem={renderImageItem}
+          ListFooterComponent={
+            <TouchableOpacity
+              onPress={editing ? pickImage : () => setEditing(true)}
+              style={[
+                styles.addSquare,
+                editing ? styles.addSquareLarge : styles.addSquareSmall,
+              ]}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          }
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 6 }}
+        />
       </View>
 
-      {/* Edit modal */}
+      {/* ================= EDIT MODAL ================= */}
       <Modal visible={editing} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View
@@ -185,12 +203,8 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
               Edit Portfolio
             </Text>
 
-            <Text
-              style={[
-                styles.label,
-                { color: theme.colors.textSecondary, marginTop: 12 },
-              ]}
-            >
+            {/* Inputs */}
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
               Stage Name
             </Text>
             <TextInput
@@ -203,8 +217,6 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
               ]}
               value={stageName}
               onChangeText={setStageName}
-              placeholder="Stage / Band name"
-              placeholderTextColor={theme.colors.textSecondary}
             />
 
             <Text
@@ -226,9 +238,6 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
               value={bio}
               onChangeText={(t) => setBio(t.slice(0, 500))}
               multiline
-              numberOfLines={4}
-              placeholder="Write about your act (max 500 characters)"
-              placeholderTextColor={theme.colors.textSecondary}
             />
 
             <Text
@@ -250,66 +259,9 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
               value={price}
               onChangeText={setPrice}
               keyboardType="numeric"
-              placeholder="e.g. 15000"
-              placeholderTextColor={theme.colors.textSecondary}
             />
 
-            <View style={{ marginTop: 12 }}>
-              <Text
-                style={[styles.label, { color: theme.colors.textSecondary }]}
-              >
-                Gallery
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  marginTop: 8,
-                  alignItems: "center",
-                }}
-              >
-                <FlatList
-                  data={images}
-                  horizontal
-                  keyExtractor={(i, idx) => idx.toString()}
-                  renderItem={({ item, index }) => (
-                    <View
-                      style={{
-                        marginRight: 10,
-                        alignItems: "center",
-                        position: "relative",
-                      }}
-                    >
-                      <Pressable
-                        onPress={() => setPreviewImage(item)}
-                        style={{ borderRadius: 10, overflow: "hidden" }}
-                      >
-                        <Image
-                          source={{ uri: item }}
-                          style={{ width: 96, height: 96, borderRadius: 10 }}
-                        />
-                      </Pressable>
-
-                      <TouchableOpacity
-                        onPress={() => removeImage(index)}
-                        style={styles.removeBtnBelow}
-                      >
-                        <Text style={{ color: "#fff", fontWeight: "700" }}>
-                          Remove
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                />
-                <TouchableOpacity
-                  onPress={addImageMock}
-                  style={[styles.addSquareSmallEdit]}
-                >
-                  <Ionicons name="add" size={22} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
+            {/* Actions */}
             <View
               style={{
                 flexDirection: "row",
@@ -325,39 +277,40 @@ export default function PortfolioCard({ profile = {}, onSave = () => {} }) {
                   Cancel
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btnPrimary} onPress={save}>
-                <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                onPress={save}
+                disabled={saving}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>
+                  {saving ? "Saving..." : "Save"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Preview image modal */}
-      <Modal visible={!!previewImage} animationType="fade" transparent>
+      {/* ================= IMAGE PREVIEW ================= */}
+      <Modal visible={!!previewImage} transparent animationType="fade">
         <View style={styles.previewOverlay}>
           <TouchableOpacity
             style={styles.previewCloseArea}
             onPress={() => setPreviewImage(null)}
           />
-          <View style={styles.previewCard}>
-            <Image
-              source={{ uri: previewImage }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
-            <TouchableOpacity
-              style={styles.previewCloseBtn}
-              onPress={() => setPreviewImage(null)}
-            >
-              <Ionicons name="close" size={22} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <Image
+            source={{ uri: previewImage }}
+            style={styles.previewImage}
+            resizeMode="contain"
+          />
         </View>
       </Modal>
     </View>
   );
 }
+
+/* ===================== STYLES (UNCHANGED) ===================== */
+// 🔥 EXACT SAME styles as your original file
 
 const styles = StyleSheet.create({
   card: {

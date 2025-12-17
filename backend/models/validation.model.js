@@ -49,6 +49,11 @@ export const validLoginSchema = {
 };
 
 export const validUserUpdatesSchema = {
+  name: {
+    type: "string",
+    minLength: 2,
+    maxLength: 50,
+  },
   currentPassword: {
     type: "string",
     regex: PASSWORD_REGEX,

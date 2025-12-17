@@ -9,11 +9,15 @@ import {
   Alert,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
-import api from "../../api/api";
+
+/* ===================== HOOKS ===================== */
+import { useLogoutMutation } from "../../hooks/mutations/useAuthMutation";
 
 export default function SettingsPanel({ onLogout = () => {} }) {
   const { theme, toggleTheme } = useTheme();
   const [darkOn, setDarkOn] = useState(theme.name === "dark");
+
+  const logoutMutation = useLogoutMutation();
 
   const onToggle = () => {
     setDarkOn((v) => !v);
@@ -21,12 +25,21 @@ export default function SettingsPanel({ onLogout = () => {} }) {
   };
 
   const onLogoutPress = () => {
-    // In mock, reset token (if you use setAuthToken)
-    try {
-      if (api && api.setAuthToken) api.setAuthToken(null);
-    } catch (e) {}
-    Alert.alert("Logged out", "You have been logged out (mock).");
-    onLogout();
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await logoutMutation.mutateAsync();
+            onLogout(); // parent can close modals etc.
+          } catch {
+            Alert.alert("Error", "Failed to logout. Try again.");
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -35,6 +48,7 @@ export default function SettingsPanel({ onLogout = () => {} }) {
         App Settings
       </Text>
 
+      {/* ===== DARK MODE ===== */}
       <View style={styles.row}>
         <Text style={[styles.label, { color: theme.colors.text }]}>
           Dark Mode
@@ -44,14 +58,15 @@ export default function SettingsPanel({ onLogout = () => {} }) {
 
       <View style={styles.sep} />
 
+      {/* ===== PRIVACY ===== */}
       <TouchableOpacity
         style={styles.rowTouchable}
-        onPress={() => {
+        onPress={() =>
           Alert.alert(
             "Privacy & Data",
-            "We value your privacy. Your personal data (name, email, profile images) is stored securely and never shared without consent. We only use data to provide service features (bookings, notifications). When you upload images they are stored encrypted on our servers (mock). You can request data removal by contacting support."
-          );
-        }}
+            "We value your privacy. Your personal data (name, email, profile images) is stored securely and never shared without consent. You can request data removal anytime."
+          )
+        }
       >
         <Text style={[styles.label, { color: theme.colors.text }]}>
           Privacy & Data
@@ -66,14 +81,15 @@ export default function SettingsPanel({ onLogout = () => {} }) {
 
       <View style={styles.sep} />
 
+      {/* ===== ABOUT ===== */}
       <TouchableOpacity
         style={styles.rowTouchable}
-        onPress={() => {
+        onPress={() =>
           Alert.alert(
             "About IGP",
-            "IGP (Indie Gigs Platform) connects performers with events and bookers. This is a mock demo app — in production your bookings, reviews and profiles will be backed by a secure API and data protection policies."
-          );
-        }}
+            "IGP (Indie Gigs Platform) connects performers with event organizers. This is a demo build."
+          )
+        }
       >
         <Text style={[styles.label, { color: theme.colors.text }]}>
           About IGP
@@ -82,13 +98,21 @@ export default function SettingsPanel({ onLogout = () => {} }) {
 
       <View style={styles.sep} />
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={onLogoutPress}>
-        <Text style={{ color: "#fff", fontWeight: "700" }}>Logout</Text>
+      {/* ===== LOGOUT ===== */}
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={onLogoutPress}
+        disabled={logoutMutation.isLoading}
+      >
+        <Text style={{ color: "#fff", fontWeight: "700" }}>
+          {logoutMutation.isLoading ? "Logging out..." : "Logout"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   card: { borderRadius: 12, padding: 14, elevation: 2, shadowOpacity: 0.05 },
   heading: { fontSize: 16, fontWeight: "700", marginBottom: 12 },
