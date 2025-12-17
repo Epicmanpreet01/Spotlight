@@ -27,3 +27,8 @@ export const fetchMyGigs = async () => {
   const res = await api.get("/gigs/my");
   return res.data;
 };
+
+export const withdrawFromGig = async (gigId) => {
+  const res = await api.post(`/gigs/${gigId}/withdraw`);
+  return res.data;
+};

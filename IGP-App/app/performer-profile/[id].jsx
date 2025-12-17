@@ -36,8 +36,8 @@ export default function PerformerProfileView() {
   /* ===================== POPUP STATES ===================== */
   const [showHirePopup, setShowHirePopup] = useState(false);
   const [hireStep, setHireStep] = useState("choice");
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  // const [selectedEvent, setSelectedEvent] = useState(null);
+  // const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
   /* ===================== DATA ===================== */
   const { data, isLoading } = usePerformerByIdQuery(id);
@@ -94,7 +94,7 @@ export default function PerformerProfileView() {
 
     setShowHirePopup(false);
     setHireStep("choice");
-    setShowConfirmPopup(true);
+    // setShowConfirmPopup(true);
   };
 
   return (
@@ -361,7 +361,7 @@ export default function PerformerProfileView() {
       </Modal>
 
       {/* ================= CONFIRM POPUP ================= */}
-      <Modal visible={showConfirmPopup} transparent animationType="fade">
+      {/* <Modal visible={showConfirmPopup} transparent animationType="fade">
         <View style={styles.popupOverlay}>
           <View
             style={[styles.popupCard, { backgroundColor: theme.colors.card }]}
@@ -381,7 +381,7 @@ export default function PerformerProfileView() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </Modal> */}
     </View>
   );
 }

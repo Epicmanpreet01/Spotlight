@@ -1,4 +1,3 @@
-// app/gig-details/[id].jsx
 import React from "react";
 import {
   View,
@@ -11,23 +10,33 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
-import api from "../../src/api/api";
+
+/* ===================== HOOKS ===================== */
+import { useGigByIdQuery } from "../../src/hooks/queries/useGigs";
+import {
+  useApplyToGigMutation,
+  useWithdrawFromGigMutation,
+} from "../../src/hooks/mutations/useGigMutation";
+import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 
 export default function GigDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { theme } = useTheme();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["gig", id],
-    queryFn: async () => (await api.get(`/gigs/${id}`)).data,
-    retry: false,
-  });
+  const { data, isLoading } = useGigByIdQuery(id);
+  const { data: me } = useCurrentUser();
 
-  if (isLoading || !data)
+  const isPerformer = me?.data?.role === "performer";
+
+  const { mutate: applyToGig, isLoading: applying } = useApplyToGigMutation(id);
+
+  const { mutate: withdrawFromGig, isLoading: withdrawing } =
+    useWithdrawFromGigMutation(id);
+
+  if (isLoading || !data?.data) {
     return (
       <View
         style={[styles.loading, { backgroundColor: theme.colors.background }]}
@@ -35,15 +44,39 @@ export default function GigDetailsScreen() {
         <Text style={{ color: theme.colors.text }}>Loading...</Text>
       </View>
     );
+  }
 
   const gig = data.data;
+
+  const handleApply = () => {
+    Alert.alert(
+      "Apply to gig",
+      "Are you sure you want to apply for this gig?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Apply", onPress: () => applyToGig({}) },
+      ]
+    );
+  };
+
+  const handleWithdraw = () => {
+    Alert.alert(
+      "Withdraw application",
+      "Are you sure you want to withdraw your application?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Withdraw", style: "destructive", onPress: withdrawFromGig },
+      ]
+    );
+  };
 
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <Image source={{ uri: gig.image }} style={styles.banner} />
+      <Image source={{ uri: gig.previewImage }} style={styles.banner} />
       <View style={styles.overlay} />
+
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -73,12 +106,12 @@ export default function GigDetailsScreen() {
             ]}
           >
             <Text style={styles.avatarText}>
-              {gig.postedBy.name?.charAt(0)}
+              {gig.postedBy?.name?.charAt(0) || "U"}
             </Text>
           </View>
           <View>
             <Text style={[styles.orgName, { color: theme.colors.text }]}>
-              {gig.postedBy.name}
+              {gig.postedBy?.name}
             </Text>
             <Text
               style={[styles.orgLabel, { color: theme.colors.textSecondary }]}
@@ -109,7 +142,7 @@ export default function GigDetailsScreen() {
                 Location
               </Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {gig.location.address}
+                {gig.location?.address}
               </Text>
             </View>
           </View>
@@ -128,8 +161,7 @@ export default function GigDetailsScreen() {
                 Time
               </Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {new Date(gig.eventDate.start).toLocaleDateString()} •{" "}
-                {new Date(gig.eventDate.start).getHours()}:00
+                {new Date(gig.eventDate.start).toLocaleDateString()}
               </Text>
             </View>
           </View>
@@ -145,6 +177,7 @@ export default function GigDetailsScreen() {
         </Text>
       </ScrollView>
 
+      {/* ================= FOOTER ================= */}
       <View
         style={[
           styles.footer,
@@ -164,14 +197,30 @@ export default function GigDetailsScreen() {
             ₹{Number(gig.budget).toLocaleString()}
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.applyBtn, { backgroundColor: theme.colors.primary }]}
-          onPress={() =>
-            Alert.alert("Applied!", "Organizer will contact you soon.")
-          }
-        >
-          <Text style={styles.applyBtnText}>Apply Now</Text>
-        </TouchableOpacity>
+
+        {isPerformer && !gig.hasApplied && (
+          <TouchableOpacity
+            style={[styles.applyBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={handleApply}
+            disabled={applying}
+          >
+            <Text style={styles.applyBtnText}>
+              {applying ? "Applying..." : "Apply Now"}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {isPerformer && gig.hasApplied && (
+          <TouchableOpacity
+            style={[styles.applyBtn, { backgroundColor: "#FF5252" }]}
+            onPress={handleWithdraw}
+            disabled={withdrawing}
+          >
+            <Text style={styles.applyBtnText}>
+              {withdrawing ? "Withdrawing..." : "Withdraw"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

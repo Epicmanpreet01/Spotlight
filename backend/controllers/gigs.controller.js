@@ -145,20 +145,38 @@ export const getGigById = async (req, res) => {
     return res.status(400).json({ success: false, error: "Invalid gig id" });
 
   try {
-    const gig = await Gig.findById(gigId)
-      .select("-applicants")
-      .populate("postedBy", "name profileImage");
+    // ⬇️ Do NOT exclude applicants yet
+    const gig = await Gig.findById(gigId).populate(
+      "postedBy",
+      "name profileImage"
+    );
 
     if (!gig)
       return res.status(404).json({ success: false, error: "No gig found" });
 
+    let hasApplied = false;
+
+    // ✅ Only performers can apply → check safely
+    if (user.role === "performer") {
+      hasApplied = gig.applicants.some(
+        (a) => a.performer.toString() === user._id.toString()
+      );
+    }
+
+    // ⬇️ Convert to plain object & remove applicants
+    const gigData = gig.toObject();
+    delete gigData.applicants;
+
     return res.status(200).json({
       success: true,
       message: "Gig fetched successfully",
-      data: gig,
+      data: {
+        ...gigData,
+        hasApplied,
+      },
     });
   } catch (error) {
-    console.error(`Error fetching gig:`, error);
+    console.error("Error fetching gig:", error);
     return res
       .status(500)
       .json({ success: false, error: "Internal server error" });
@@ -702,13 +720,11 @@ export const getMyGigs = async (req, res) => {
   try {
     const gigs = await Gig.find({ postedBy: user._id });
 
-    return res
-      .status(200)
-      .json({
-        success: true,
-        message: "Fetched gigs successfully",
-        data: gigs,
-      });
+    return res.status(200).json({
+      success: true,
+      message: "Fetched gigs successfully",
+      data: gigs,
+    });
   } catch (error) {
     console.error(`Error occured while fetching user gigs: ${error}`);
     return res
