@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
+import { IMAGES } from "../../constants/images";
 
 export default function NearbyGigsList({ items = [] }) {
   const router = useRouter();
@@ -20,7 +21,12 @@ export default function NearbyGigsList({ items = [] }) {
       style={[styles.card, { backgroundColor: theme.colors.card }]}
       onPress={() => router.push(`/gig-details/${item._id}`)}
     >
-      <Image source={{ uri: item.previewImage }} style={styles.img} />
+      <Image
+        source={
+          item.previewImage ? { uri: item.previewImage } : IMAGES.NO_IMAGE
+        }
+        style={styles.img}
+      />
       <View style={styles.meta}>
         <Text
           style={[styles.title, { color: theme.colors.text }]}

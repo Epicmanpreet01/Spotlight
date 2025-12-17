@@ -3,6 +3,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
+import { IMAGES } from "../../constants/images";
 
 export default function RecommendedGigsList({ items = [] }) {
   const router = useRouter();
@@ -16,7 +17,12 @@ export default function RecommendedGigsList({ items = [] }) {
           style={[styles.row, { backgroundColor: theme.colors.card }]}
           onPress={() => router.push(`/gig-details/${item._id}`)}
         >
-          <Image source={{ uri: item.previewImage }} style={styles.thumb} />
+          <Image
+            source={
+              item.previewImage ? { uri: item.previewImage } : IMAGES.NO_IMAGE
+            }
+            style={styles.thumb}
+          />
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
               {item.title}

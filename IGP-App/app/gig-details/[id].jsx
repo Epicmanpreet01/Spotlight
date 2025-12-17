@@ -20,6 +20,7 @@ import {
   useWithdrawFromGigMutation,
 } from "../../src/hooks/mutations/useGigMutation";
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
+import { IMAGES } from "../../src/constants/images";
 
 export default function GigDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -48,6 +49,9 @@ export default function GigDetailsScreen() {
 
   const gig = data.data;
 
+  const image = gig.previewImage;
+  const imageSource = image ? { uri: image } : IMAGES.NO_IMAGE;
+
   const handleApply = () => {
     Alert.alert(
       "Apply to gig",
@@ -74,7 +78,7 @@ export default function GigDetailsScreen() {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <Image source={{ uri: gig.previewImage }} style={styles.banner} />
+      <Image source={imageSource} style={styles.banner} />
       <View style={styles.overlay} />
 
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
