@@ -685,3 +685,34 @@ export const closeGig = async (req, res) => {
       .json({ success: false, error: "Internal server error" });
   }
 };
+
+export const getMyGigs = async (req, res) => {
+  const { user } = req;
+
+  if (!user)
+    return res
+      .status(400)
+      .json({ success: false, error: "Unauthorizer access" });
+
+  if (user.role !== "booker")
+    return res
+      .status(400)
+      .json({ success: false, error: "Unauthorized access" });
+
+  try {
+    const gigs = await Gig.find({ postedBy: user._id });
+
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message: "Fetched gigs successfully",
+        data: gigs,
+      });
+  } catch (error) {
+    console.error(`Error occured while fetching user gigs: ${error}`);
+    return res
+      .status(500)
+      .json({ success: false, error: "Internal server error" });
+  }
+};

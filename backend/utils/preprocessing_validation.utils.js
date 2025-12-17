@@ -63,10 +63,11 @@ export const validateLocation = (loc) => {
     throw new Error("Location.coordinates must be [longitude, latitude]");
   }
 
-  const [lng, lat] = coords;
+  const lng = Number(coords[0]);
+  const lat = Number(coords[1]);
 
-  if (typeof lng !== "number" || typeof lat !== "number") {
-    throw new Error("Coordinates must be numbers");
+  if (Number.isNaN(lng) || Number.isNaN(lat)) {
+    throw new Error("Coordinates must be valid numbers");
   }
 
   if (lng < -180 || lng > 180) {

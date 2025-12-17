@@ -16,6 +16,7 @@ import {
   withdrawApplication,
   closeGig,
   deleteGig,
+  getMyGigs,
 } from "../controllers/gigs.controller.js";
 
 import upload from "../middleware/upload.middleware.js";
@@ -74,5 +75,7 @@ router.put(
   validateInput(validCloseGigSchema),
   closeGig
 );
+
+router.get("/my", authenticate, authorize(["booker"]), getMyGigs);
 
 export default router;

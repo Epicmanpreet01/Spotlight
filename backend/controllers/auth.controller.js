@@ -185,6 +185,7 @@ export const me = async (req, res) => {
   const { user } = req;
 
   try {
+    /* ===================== BASE USER ===================== */
     const me = await User.findById(user._id).select("-password");
 
     if (!me) {
@@ -194,22 +195,55 @@ export const me = async (req, res) => {
       });
     }
 
-    let profile = undefined;
+    let profile = null;
 
+    /* ===================== PERFORMER ===================== */
     if (me.role === "performer") {
-      profile = await PerformerProfile.findOne({ user: me._id });
-    } else if (me.role === "booker") {
-      profile = await BookerProfile.findOne({ user: me._id });
+      profile = await PerformerProfile.findOne({ user: me._id })
+        .populate({
+          path: "appliedGigs",
+          select: "title eventDate location budget status categoryRequired",
+        })
+        .populate({
+          path: "bookings",
+          match: { status: "completed" },
+          populate: {
+            path: "gig",
+            select: "title location eventDate",
+          },
+        });
+    }
+
+    /* ===================== BOOKER ===================== */
+    if (me.role === "booker") {
+      profile = await BookerProfile.findOne({ user: me._id })
+        .populate({
+          path: "gigs",
+          select: "title eventDate location budget status categoryRequired",
+        })
+        .populate({
+          path: "bookings",
+          populate: [
+            {
+              path: "gig",
+              select: "title location eventDate",
+            },
+            {
+              path: "performer",
+              select: "name profileImage",
+            },
+          ],
+        });
     }
 
     return res.status(200).json({
       success: true,
       message: "Fetched user details successfully",
       data: me,
-      profile: profile,
+      profile,
     });
   } catch (error) {
-    console.error(`Error occurred while fetching user details: ${error}`);
+    console.error("Error fetching /me:", error);
     return res.status(500).json({
       success: false,
       error: "Internal server error",

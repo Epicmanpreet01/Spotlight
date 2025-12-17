@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchGigs, fetchGigById } from "../../api/gigs.api";
+import { fetchGigs, fetchGigById, fetchMyGigs } from "../../api/gigs.api";
 import Toast from "react-native-toast-message";
 
 export const useGigsQuery = (filters = {}, enabled = true) =>
@@ -46,4 +46,14 @@ export const useGigByIdQuery = (id) =>
       }
     },
     retry: false,
+  });
+
+export const useMyGigsQuery = (enabled = true) =>
+  useQuery({
+    queryKey: ["myGigs"],
+    enabled,
+    queryFn: async () => {
+      const res = await fetchMyGigs();
+      return res.data;
+    },
   });

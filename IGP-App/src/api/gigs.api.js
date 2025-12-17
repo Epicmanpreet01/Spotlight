@@ -22,3 +22,8 @@ export const applyToGig = async (gigId, body) => {
   const res = await api.post(`/gigs/${gigId}/apply`, body);
   return res.data;
 };
+
+export const fetchMyGigs = async () => {
+  const res = await api.get("/gigs/my");
+  return res.data;
+};

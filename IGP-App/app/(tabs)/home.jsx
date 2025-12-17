@@ -45,40 +45,41 @@ export default function HomeScreen() {
   const user = userResp?.data ?? null;
   const profile = userResp?.profile ?? null;
   const role = user?.role ?? null;
-  const performerCategory = role === "performer" ? profile?.category : null;
 
   /* ===================== NOTIFICATIONS ===================== */
   const { data: notifications = [] } = useNotifications();
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  /* ===================== GIGS (PERFORMER) ===================== */
+  /* ===================== PERFORMER GIGS ===================== */
   const {
     data: gigsResp,
     isLoading: gigsLoading,
     refetch: refetchGigs,
   } = useGigsQuery({}, role === "performer");
 
+  const performerCategory = role === "performer" ? profile?.category : null;
+
   const { data: recommendedGigsResp } = useGigsQuery(
     { requiredCategory: performerCategory },
     role === "performer" && !!performerCategory
   );
 
-  const gigs = gigsResp?.data || [];
-  const recommendedGigs = recommendedGigsResp?.data || [];
+  const gigs = gigsResp?.data ?? [];
+  const recommendedGigs = recommendedGigsResp?.data ?? [];
   const nearbyGigs = gigs.slice(0, 7);
 
-  /* ===================== PERFORMERS (BOOKER) ===================== */
+  /* ===================== BOOKER PERFORMERS ===================== */
   const {
     data: performersResp,
     isLoading: perfLoading,
     refetch: refetchPerformers,
   } = usePerformersQuery({}, role === "booker");
 
-  const performers = performersResp?.data || [];
+  const performers = performersResp?.data ?? [];
   const nearbyPerformers = performers.slice(0, 4);
   const recommendedPerformers = performers.slice(4);
 
-  /* ===================== LOCATION UPDATE ===================== */
+  /* ===================== LOCATION ===================== */
   const { mutate: updateLocation } = useUpdateLocationMutation();
 
   /* ===================== AUTH GUARD ===================== */
@@ -118,7 +119,6 @@ export default function HomeScreen() {
             onPressLocation={() => setLocationModalOpen(true)}
           />
 
-          {/* NEARBY GIGS */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Nearby Gigs
@@ -130,13 +130,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {gigs.length === 0 ? (
+          {nearbyGigs.length === 0 ? (
             <HomeEmptyState message="No nearby gigs available right now." />
           ) : (
             <NearbyGigsList items={nearbyGigs} />
           )}
 
-          {/* RECOMMENDED */}
           <View style={[styles.sectionHeader, { marginTop: 24 }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Recommended
@@ -184,7 +183,6 @@ export default function HomeScreen() {
           onPressLocation={() => setLocationModalOpen(true)}
         />
 
-        {/* NEARBY PERFORMERS */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Nearby Performers
@@ -198,7 +196,6 @@ export default function HomeScreen() {
 
         <BookerNearbyList performers={nearbyPerformers} />
 
-        {/* RECOMMENDED */}
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Recommended

@@ -139,12 +139,22 @@ export const getPerformerById = async (req, res) => {
   }
 
   try {
-    const privateFields = user ? "city location" : "";
+    const privateFields = user ? "city location bookings" : "";
     const publicFields =
       "category subCategory type bio priceStartingAt galleryImages videoLinks averageRating reviewCount";
 
     const performer = await PerformerProfile.findById(id)
-      .populate("user", "name profileImage")
+      .populate("user", "name profileImage city")
+      .populate({
+        path: "bookings",
+        match: { status: "completed" }, // ✅ ONLY completed bookings
+        select: "eventDate totalPrice gig",
+        populate: {
+          path: "gig",
+          select: "title location",
+        },
+        options: { sort: { "eventDate.start": -1 } },
+      })
       .select(`${publicFields} ${privateFields}`);
 
     if (!performer) {

@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../context/ThemeContext";
+import { IMAGES } from "../../../constants/images.js";
 
 const BOOKER_GREEN = "#00970dff";
 
@@ -18,7 +19,11 @@ export default function BookerRecommendedList({ performers = [] }) {
           onPress={() => router.push(`/performer-profile/${item._id}`)}
         >
           <Image
-            source={{ uri: item.galleryImages?.[0] || item.user?.profileImage }}
+            source={
+              item.user?.profileImage || item.galleryImages?.[0]
+                ? { uri: item.user?.profileImage || item.galleryImages?.[0] }
+                : IMAGES.NO_IMAGE
+            }
             style={styles.thumb}
           />
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useTheme } from "../../../context/ThemeContext";
+import { IMAGES } from "../../../constants/images";
 
 const BOOKER_GREEN = "#00970dff";
 
@@ -8,9 +9,9 @@ export default function BookerPerformerCard({ performer, onPress }) {
   const { theme } = useTheme();
 
   const image =
-    performer.galleryImages?.[0] ||
-    performer.user?.profileImage ||
-    "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=900&q=80";
+    performer.user?.profileImage || performer.galleryImages?.[0] || null;
+
+  const imageSource = image ? { uri: image } : IMAGES.NO_IMAGE;
 
   return (
     <TouchableOpacity
@@ -18,7 +19,7 @@ export default function BookerPerformerCard({ performer, onPress }) {
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <Image source={{ uri: image }} style={styles.image} />
+      <Image source={imageSource} style={styles.image} />
 
       <View style={styles.meta}>
         <Text style={[styles.name, { color: theme.colors.text }]}>
