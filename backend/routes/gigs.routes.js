@@ -31,6 +31,8 @@ router.get(
   getGigs
 );
 
+router.get("/my", authenticate, authorize(["booker"]), getMyGigs);
+
 router.get("/:gigId", authenticate, authorize(["performer"]), getGigById);
 
 router.post(
@@ -75,7 +77,5 @@ router.put(
   validateInput(validCloseGigSchema),
   closeGig
 );
-
-router.get("/my", authenticate, authorize(["booker"]), getMyGigs);
 
 export default router;
