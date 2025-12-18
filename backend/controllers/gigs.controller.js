@@ -145,27 +145,37 @@ export const getGigById = async (req, res) => {
     return res.status(400).json({ success: false, error: "Invalid gig id" });
 
   try {
-    // ⬇️ Do NOT exclude applicants yet
-    const gig = await Gig.findById(gigId).populate(
-      "postedBy",
-      "name profileImage"
-    );
+    const gig = await Gig.findById(gigId)
+      .populate("postedBy", "name profileImage")
+      .populate("applicants.performer", "name city profileImage");
 
     if (!gig)
       return res.status(404).json({ success: false, error: "No gig found" });
 
+    // 🔐 Booker can only view own gig
+    if (
+      user.role === "booker" &&
+      gig.postedBy._id.toString() !== user._id.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Unauthorized access" });
+    }
+
     let hasApplied = false;
 
-    // ✅ Only performers can apply → check safely
     if (user.role === "performer") {
       hasApplied = gig.applicants.some(
-        (a) => a.performer.toString() === user._id.toString()
+        (a) => a.performer._id.toString() === user._id.toString()
       );
     }
 
-    // ⬇️ Convert to plain object & remove applicants
     const gigData = gig.toObject();
-    delete gigData.applicants;
+
+    // ❌ Hide applicants from performers
+    if (user.role === "performer") {
+      delete gigData.applicants;
+    }
 
     return res.status(200).json({
       success: true,

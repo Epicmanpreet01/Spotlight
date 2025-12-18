@@ -36,3 +36,10 @@ export const fetchAppliedGigs = async () => {
   const res = await api.get("/gigs/applied");
   return res.data;
 };
+
+export const updateGig = async (id, formData) => {
+  const res = await api.put(`/gigs/update/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};

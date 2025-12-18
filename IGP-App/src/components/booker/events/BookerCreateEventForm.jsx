@@ -9,6 +9,9 @@ import {
   Alert,
   Modal,
   ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -31,7 +34,8 @@ export default function BookerCreateEventForm({ hireContext }) {
   const router = useRouter();
   const { theme } = useTheme();
 
-  const { mutate: createGig, isLoading } = useCreateGigMutation();
+  const { mutate: createGig, status } = useCreateGigMutation();
+  const isPending = status === "pending";
 
   /* ===================== FORM STATE ===================== */
   const [image, setImage] = useState(null);
@@ -151,211 +155,235 @@ export default function BookerCreateEventForm({ hireContext }) {
   };
 
   return (
-    <View>
-      {/* ================= IMAGE PICKER ================= */}
-      <TouchableOpacity
-        style={[styles.imageBox, { backgroundColor: theme.colors.card }]}
-        onPress={pickImageFromGallery}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: 160,
+          flexGrow: 1,
+        }}
       >
-        {image ? (
-          <Image source={{ uri: image }} style={styles.image} />
-        ) : (
-          <>
+        {/* ================= IMAGE PICKER ================= */}
+        <TouchableOpacity
+          style={[styles.imageBox, { backgroundColor: theme.colors.card }]}
+          onPress={pickImageFromGallery}
+        >
+          {image ? (
+            <Image source={{ uri: image }} style={styles.image} />
+          ) : (
+            <>
+              <Ionicons
+                name="image-outline"
+                size={36}
+                color={theme.colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.imageText,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Add Event Image
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <Input label="Event Name" value={title} setValue={setTitle} />
+
+        {/* ================= CATEGORY ================= */}
+        <View style={{ marginBottom: 14 }}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Performer Type
+          </Text>
+
+          <TouchableOpacity
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.inputBg,
+                borderColor: theme.colors.border,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              },
+            ]}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <Text
+              style={{
+                color: category
+                  ? theme.colors.text
+                  : theme.colors.textSecondary,
+              }}
+            >
+              {category || "Select performer category"}
+            </Text>
             <Ionicons
-              name="image-outline"
-              size={36}
+              name="chevron-down"
+              size={18}
               color={theme.colors.textSecondary}
             />
-            <Text
-              style={[styles.imageText, { color: theme.colors.textSecondary }]}
-            >
-              Add Event Image
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
-      <Input label="Event Name" value={title} setValue={setTitle} />
-
-      {/* ================= CATEGORY ================= */}
-      <View style={{ marginBottom: 14 }}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>
-          Performer Type
-        </Text>
-
-        <TouchableOpacity
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.inputBg,
-              borderColor: theme.colors.border,
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            },
-          ]}
-          onPress={() => setShowCategoryModal(true)}
-        >
-          <Text
-            style={{
-              color: category ? theme.colors.text : theme.colors.textSecondary,
-            }}
-          >
-            {category || "Select performer category"}
+        {/* ================= LOCATION ================= */}
+        <View style={{ marginBottom: 14 }}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Location
           </Text>
-          <Ionicons
-            name="chevron-down"
-            size={18}
-            color={theme.colors.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
 
-      {/* ================= LOCATION ================= */}
-      <View style={{ marginBottom: 14 }}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>
-          Location
-        </Text>
-
-        <TextInput
-          value={locationQuery}
-          onChangeText={(text) => {
-            setLocationQuery(text);
-            setIsTyping(true);
-            setLocationData(null);
-          }}
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.inputBg,
-              color: theme.colors.text,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        />
-
-        {suggestions.length > 0 && !isTyping && (
-          <View
-            style={{
-              backgroundColor: theme.colors.card,
-              borderRadius: 10,
-              marginTop: 6,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
+          <TextInput
+            value={locationQuery}
+            onChangeText={(text) => {
+              setLocationQuery(text);
+              setIsTyping(true);
+              setLocationData(null);
             }}
-          >
-            {suggestions.map((s) => (
-              <TouchableOpacity
-                key={s.place_id}
-                style={{ padding: 12 }}
-                onPress={() => {
-                  setLocationQuery(s.display_name);
-                  setLocationData({
-                    address: s.display_name,
-                    location: {
-                      type: "Point",
-                      coordinates: [Number(s.lon), Number(s.lat)],
-                    },
-                  });
-                  setSuggestions([]);
-                }}
-              >
-                <Text style={{ color: theme.colors.text }}>
-                  {s.display_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.inputBg,
+                color: theme.colors.text,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          />
 
-      {/* ================= DATES ================= */}
-      <DateField
-        label="Start Date"
-        value={startDate}
-        onPress={() => setShowStartPicker(true)}
-      />
-      <DateField
-        label="End Date"
-        value={endDate}
-        onPress={() => setShowEndPicker(true)}
-      />
-
-      {showStartPicker && (
-        <DateTimePicker
-          value={startDate || new Date()}
-          mode="date"
-          onChange={(e, d) => {
-            setShowStartPicker(false);
-            if (d) setStartDate(d);
-          }}
-        />
-      )}
-
-      {showEndPicker && (
-        <DateTimePicker
-          value={endDate || new Date()}
-          mode="date"
-          onChange={(e, d) => {
-            setShowEndPicker(false);
-            if (d) setEndDate(d);
-          }}
-        />
-      )}
-
-      <Input label="Description" value={desc} setValue={setDesc} multiline />
-      <Input
-        label="Budget (₹)"
-        value={budget}
-        setValue={setBudget}
-        keyboardType="numeric"
-      />
-
-      <TouchableOpacity
-        style={styles.createBtn}
-        onPress={handleCreate}
-        disabled={isLoading}
-      >
-        <Text style={styles.createText}>
-          {isLoading ? "Creating..." : "Create Event"}
-        </Text>
-      </TouchableOpacity>
-
-      {/* ================= CATEGORY MODAL ================= */}
-      <Modal visible={showCategoryModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.modalCard, { backgroundColor: theme.colors.card }]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Select Performer Category
-            </Text>
-
-            <ScrollView>
-              {PERFORMER_CATEGORIES.map((cat) => (
+          {suggestions.length > 0 && !isTyping && (
+            <View
+              style={{
+                backgroundColor: theme.colors.card,
+                borderRadius: 10,
+                marginTop: 6,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+              }}
+            >
+              {suggestions.map((s) => (
                 <TouchableOpacity
-                  key={cat}
-                  style={styles.modalItem}
+                  key={s.place_id}
+                  style={{ padding: 12 }}
                   onPress={() => {
-                    setCategory(cat);
-                    setShowCategoryModal(false);
+                    setLocationQuery(s.display_name);
+                    setLocationData({
+                      address: s.display_name,
+                      location: {
+                        type: "Point",
+                        coordinates: [Number(s.lon), Number(s.lat)],
+                      },
+                    });
+                    setSuggestions([]);
                   }}
                 >
-                  <Text style={{ color: theme.colors.text }}>{cat}</Text>
+                  <Text style={{ color: theme.colors.text }}>
+                    {s.display_name}
+                  </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-
-            <TouchableOpacity
-              onPress={() => setShowCategoryModal(false)}
-              style={{ marginTop: 12 }}
-            >
-              <Text style={{ color: theme.colors.textSecondary }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          )}
         </View>
-      </Modal>
-    </View>
+
+        {/* ================= DATES ================= */}
+        <DateField
+          label="Start Date"
+          value={startDate}
+          onPress={() => setShowStartPicker(true)}
+        />
+        <DateField
+          label="End Date"
+          value={endDate}
+          onPress={() => setShowEndPicker(true)}
+        />
+
+        {showStartPicker && (
+          <DateTimePicker
+            value={startDate || new Date()}
+            mode="date"
+            onChange={(e, d) => {
+              setShowStartPicker(false);
+              if (d) setStartDate(d);
+            }}
+          />
+        )}
+
+        {showEndPicker && (
+          <DateTimePicker
+            value={endDate || new Date()}
+            mode="date"
+            onChange={(e, d) => {
+              setShowEndPicker(false);
+              if (d) setEndDate(d);
+            }}
+          />
+        )}
+
+        <Input label="Description" value={desc} setValue={setDesc} multiline />
+        <Input
+          label="Budget (₹)"
+          value={budget}
+          setValue={setBudget}
+          keyboardType="numeric"
+        />
+
+        <TouchableOpacity
+          style={[styles.createBtn, isPending && { opacity: 0.7 }]}
+          onPress={handleCreate}
+          disabled={isPending}
+        >
+          {isPending ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Text style={styles.createText}>Create Event</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* ================= CATEGORY MODAL ================= */}
+        <Modal visible={showCategoryModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View
+              style={[styles.modalCard, { backgroundColor: theme.colors.card }]}
+            >
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                Select Performer Category
+              </Text>
+
+              <ScrollView>
+                {PERFORMER_CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={styles.modalItem}
+                    onPress={() => {
+                      setCategory(cat);
+                      setShowCategoryModal(false);
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.text }}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setShowCategoryModal(false)}
+                style={{ marginTop: 12 }}
+              >
+                <Text style={{ color: theme.colors.textSecondary }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

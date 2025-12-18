@@ -489,11 +489,20 @@ export const getMyBookings = async (req, res) => {
         path: "gig",
         select: "title previewImage budget location eventDate status",
       })
-      .sort({ createdAt: -1 });
+      .select("+completionCode")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const sanitizedBookings = bookings.map((booking) => {
+      if (booking.booker._id.toString() !== user._id.toString()) {
+        delete booking.completionCode;
+      }
+      return booking;
+    });
 
     return res.status(200).json({
       success: true,
-      data: bookings,
+      data: sanitizedBookings,
     });
   } catch (error) {
     console.error("getMyBookings error:", error);

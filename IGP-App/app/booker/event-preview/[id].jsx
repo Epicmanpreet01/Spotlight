@@ -7,13 +7,16 @@ import {
   TouchableOpacity,
   Image,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
-import api from "../../../src/api/api";
 import { useTheme } from "../../../src/context/ThemeContext";
+
+/* ===================== HOOKS ===================== */
+import { useGigByIdQuery } from "../../../src/hooks/queries/useGigs";
+import { useCreateBookingMutation } from "../../../src/hooks/mutations/useBookingMutations";
 
 export default function BookerEventPreview() {
   const { id } = useLocalSearchParams();
@@ -21,27 +24,38 @@ export default function BookerEventPreview() {
   const { theme } = useTheme();
 
   const [showMenu, setShowMenu] = useState(false);
-  const [selectedPerformer, setSelectedPerformer] = useState(null);
+  const [hiringPerformerId, setHiringPerformerId] = useState(null);
 
   /* ================= FETCH EVENT ================= */
-  const { data } = useQuery({
-    queryKey: ["booker-event", id],
-    queryFn: async () => (await api.get("/booker/events")).data,
-  });
+  const { data: gigResp, isLoading } = useGigByIdQuery(id);
+  const event = gigResp?.data;
 
-  /* ================= FETCH PERFORMERS ================= */
-  const { data: performerResp } = useQuery({
-    queryKey: ["performers-list"],
-    queryFn: async () => (await api.get("/performers")).data,
-  });
+  /* ================= BOOKING ================= */
+  const { mutate: createBooking, isLoading: hiring } =
+    useCreateBookingMutation();
 
-  const performers = performerResp?.data || [];
-  const event = data?.data?.find((e) => e._id === id);
+  if (isLoading || !event) return null;
 
-  if (!event) return null;
+  const applicants = event.applicants || [];
 
-  const handleHire = (perf) => {
-    setSelectedPerformer(perf);
+  const handleHire = (applicant) => {
+    setHiringPerformerId(applicant.performer._id);
+
+    createBooking(
+      {
+        performerId: applicant.performer._id,
+        gigId: event._id,
+        eventDate: event.eventDate,
+        totalPrice: event.budget,
+        source: "applicant",
+      },
+      {
+        onSettled: () => {
+          setHiringPerformerId(null);
+          router.replace("/(tabs)/profile");
+        },
+      }
+    );
   };
 
   return (
@@ -61,7 +75,7 @@ export default function BookerEventPreview() {
 
       <ScrollView contentContainerStyle={styles.container}>
         {/* ================= BANNER ================= */}
-        <Image source={{ uri: event.image }} style={styles.banner} />
+        <Image source={{ uri: event.previewImage }} style={styles.banner} />
 
         {/* ================= TITLE ================= */}
         <Text style={[styles.title, { color: theme.colors.text }]}>
@@ -85,7 +99,7 @@ export default function BookerEventPreview() {
           <Text
             style={[styles.infoText, { color: theme.colors.textSecondary }]}
           >
-            {event.location.address}, {event.location.city}
+            {event.location?.address}
           </Text>
         </View>
 
@@ -139,31 +153,21 @@ export default function BookerEventPreview() {
           </Text>
         </View>
 
-        {/* ================= APPLICANTS LIST ================= */}
+        {/* ================= APPLICANTS ================= */}
         <Text
           style={[styles.section, { marginTop: 28, color: theme.colors.text }]}
         >
           Applicants List
         </Text>
 
-        {selectedPerformer ? (
-          <View
-            style={[styles.hiredCard, { backgroundColor: theme.colors.card }]}
-          >
-            <Ionicons name="checkmark-circle" size={28} color="#2E7D32" />
-            <View style={{ marginLeft: 10 }}>
-              <Text style={[styles.hiredName, { color: theme.colors.text }]}>
-                {selectedPerformer.user?.name}
-              </Text>
-              <Text style={{ color: theme.colors.textSecondary }}>
-                {selectedPerformer.category} • {selectedPerformer.user?.city}
-              </Text>
-            </View>
-          </View>
+        {applicants.length === 0 ? (
+          <Text style={{ color: theme.colors.textSecondary }}>
+            No applications yet
+          </Text>
         ) : (
-          performers.map((item) => (
+          applicants.map((a) => (
             <View
-              key={item._id}
+              key={a.performer._id}
               style={[
                 styles.performerCard,
                 { backgroundColor: theme.colors.card },
@@ -173,21 +177,31 @@ export default function BookerEventPreview() {
                 <Text
                   style={[styles.performerName, { color: theme.colors.text }]}
                 >
-                  {item.user?.name}
+                  {a.performer.name}
                 </Text>
                 <Text style={{ color: theme.colors.textSecondary }}>
-                  {item.category} • {item.user?.city}
+                  {a.performer.city}
                 </Text>
               </View>
 
               <TouchableOpacity
-                onPress={() => handleHire(item)}
+                disabled={hiringPerformerId === a.performer._id}
+                onPress={() => handleHire(a)}
                 style={[
                   styles.hireBtn,
-                  { backgroundColor: theme.colors.primary },
+                  {
+                    backgroundColor:
+                      hiringPerformerId === a.performer._id
+                        ? theme.colors.border
+                        : theme.colors.primary,
+                  },
                 ]}
               >
-                <Text style={styles.hireText}>Hire</Text>
+                {hiringPerformerId === a.performer._id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.hireText}>Hire</Text>
+                )}
               </TouchableOpacity>
             </View>
           ))
@@ -212,7 +226,7 @@ export default function BookerEventPreview() {
               style={styles.modalBtn}
               onPress={() => {
                 setShowMenu(false);
-                router.push("/booker/create-event");
+                router.push(`/booker/edit-event/${event._id}`);
               }}
             >
               <Text style={[styles.modalText, { color: theme.colors.text }]}>

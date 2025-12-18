@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
+import * as VideoThumbnails from "expo-video-thumbnails";
 
 /* ===================== HOOKS ===================== */
 import { usePerformerByIdQuery } from "../../src/hooks/queries/usePerformers";
@@ -20,10 +21,14 @@ import { useCreateBookingMutation } from "../../src/hooks/mutations/useBookingMu
 import { useMyGigsQuery } from "../../src/hooks/queries/useGigs";
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 
+/* ===================== COMPONENTS ===================== */
+import ImageViewerModal from "../../src/components/profile/ImageViewerModal";
 import { IMAGES } from "../../src/constants/images.js";
 
 const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = 360;
+
+const isVideo = (uri = "") => uri.endsWith(".mp4") || uri.includes("video");
 
 export default function PerformerProfileView() {
   const { id } = useLocalSearchParams();
@@ -33,11 +38,13 @@ export default function PerformerProfileView() {
   const scrollRef = useRef(null);
   const [index, setIndex] = useState(0);
 
+  /* 🔹 ADDED */
+  const [previewUri, setPreviewUri] = useState(null);
+  const [videoThumbs, setVideoThumbs] = useState({});
+
   /* ===================== POPUP STATES ===================== */
   const [showHirePopup, setShowHirePopup] = useState(false);
   const [hireStep, setHireStep] = useState("choice");
-  // const [selectedEvent, setSelectedEvent] = useState(null);
-  // const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
   /* ===================== DATA ===================== */
   const { data, isLoading } = usePerformerByIdQuery(id);
@@ -48,14 +55,6 @@ export default function PerformerProfileView() {
 
   const { mutate: createBooking } = useCreateBookingMutation();
 
-  if (isLoading || !data?.data) {
-    return (
-      <View style={styles.loading}>
-        <Text style={{ color: theme.colors.textSecondary }}>Loading…</Text>
-      </View>
-    );
-  }
-
   const perf = data.data;
 
   /* ===================== GALLERY ===================== */
@@ -63,6 +62,44 @@ export default function PerformerProfileView() {
     perf.galleryImages?.length > 0
       ? perf.galleryImages
       : [perf.user?.profileImage];
+
+  /* 🔹 ADDED: VIDEO THUMBNAILS (SAFE, NON-CONDITIONAL) */
+  useEffect(() => {
+    let cancelled = false;
+
+    const generateThumbs = async () => {
+      const map = {};
+
+      for (const uri of gallery) {
+        if (uri && isVideo(uri) && !videoThumbs[uri]) {
+          try {
+            const { uri: thumb } = await VideoThumbnails.getThumbnailAsync(
+              uri,
+              { time: 1000 }
+            );
+            if (!cancelled) map[uri] = thumb;
+          } catch {}
+        }
+      }
+
+      if (!cancelled && Object.keys(map).length) {
+        setVideoThumbs((prev) => ({ ...prev, ...map }));
+      }
+    };
+
+    generateThumbs();
+    return () => {
+      cancelled = true;
+    };
+  }, [gallery]);
+
+  if (isLoading || !data?.data) {
+    return (
+      <View style={styles.loading}>
+        <Text style={{ color: theme.colors.textSecondary }}>Loading…</Text>
+      </View>
+    );
+  }
 
   const goLeft = () => {
     if (index > 0) {
@@ -94,7 +131,6 @@ export default function PerformerProfileView() {
 
     setShowHirePopup(false);
     setHireStep("choice");
-    // setShowConfirmPopup(true);
   };
 
   return (
@@ -106,18 +142,39 @@ export default function PerformerProfileView() {
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => {
-            const i = Math.round(e.nativeEvent.contentOffset.x / width);
-            setIndex(i);
-          }}
+          onMomentumScrollEnd={(e) =>
+            setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
+          }
         >
-          {gallery.map((img, i) => {
-            const source =
-              typeof img === "string" && img.length > 0
-                ? { uri: img }
-                : IMAGES.NO_IMAGE;
+          {gallery.map((media, i) => {
+            const uri =
+              typeof media === "string" && media.length > 0 ? media : null;
 
-            return <Image key={i} source={source} style={styles.banner} />;
+            const thumb = uri && isVideo(uri) ? videoThumbs[uri] : uri;
+
+            return (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.9}
+                onPress={() => uri && setPreviewUri(uri)}
+              >
+                <Image
+                  source={thumb ? { uri: thumb } : IMAGES.NO_IMAGE}
+                  style={styles.banner}
+                />
+
+                {/* 🔹 VIDEO OVERLAY */}
+                {uri && isVideo(uri) && (
+                  <View style={styles.playOverlay}>
+                    <Ionicons
+                      name="play-circle"
+                      size={72}
+                      color="rgba(255,255,255,0.95)"
+                    />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
           })}
         </ScrollView>
 
@@ -240,7 +297,14 @@ export default function PerformerProfileView() {
         </TouchableOpacity>
       </View>
 
-      {/* ================= HIRE POPUP ================= */}
+      {/* ================= IMAGE / VIDEO VIEWER ================= */}
+      <ImageViewerModal
+        visible={!!previewUri}
+        uri={previewUri}
+        onClose={() => setPreviewUri(null)}
+      />
+
+      {/* ================= HIRE POPUP (UNCHANGED) ================= */}
       <Modal visible={showHirePopup} transparent animationType="fade">
         <View style={styles.popupOverlay}>
           <View
@@ -359,29 +423,6 @@ export default function PerformerProfileView() {
           </View>
         </View>
       </Modal>
-
-      {/* ================= CONFIRM POPUP ================= */}
-      {/* <Modal visible={showConfirmPopup} transparent animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View
-            style={[styles.popupCard, { backgroundColor: theme.colors.card }]}
-          >
-            <Ionicons name="checkmark-circle" size={56} color="#4CAF50" />
-            <Text style={[styles.popupTitle, { color: theme.colors.text }]}>
-              Performer hired successfully!
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.popupPrimaryBtn,
-                { backgroundColor: theme.colors.primary },
-              ]}
-              onPress={() => setShowConfirmPopup(false)}
-            >
-              <Text style={styles.popupBtnText}>OK</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal> */}
     </View>
   );
 }
@@ -390,6 +431,16 @@ export default function PerformerProfileView() {
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center" },
   banner: { width, height: IMAGE_HEIGHT, resizeMode: "cover" },
+  playOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
   backWrap: { position: "absolute", top: 15, left: 15 },
   backBtn: {
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -491,11 +542,4 @@ const styles = StyleSheet.create({
     borderBottomColor: "#333",
   },
   cancelBtn: { marginTop: 20, padding: 10 },
-  popupPrimaryBtn: {
-    marginTop: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 14,
-  },
-  popupBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

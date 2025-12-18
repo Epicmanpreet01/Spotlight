@@ -36,7 +36,7 @@ router.get("/my", authenticate, authorize(["booker"]), getMyGigs);
 
 router.get("/applied", authenticate, authorize(["performer"]), getAppliedGigs);
 
-router.get("/:gigId", authenticate, authorize(["performer"]), getGigById);
+router.get("/:gigId", authenticate, getGigById);
 
 router.post(
   "/create",

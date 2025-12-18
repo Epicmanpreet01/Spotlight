@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
-import { createGig, applyToGig, withdrawFromGig } from "../../api/gigs.api";
+import {
+  createGig,
+  applyToGig,
+  withdrawFromGig,
+  updateGig,
+} from "../../api/gigs.api";
 
 export const useCreateGigMutation = () => {
   const queryClient = useQueryClient();
@@ -79,6 +84,32 @@ export const useWithdrawFromGigMutation = (gigId) => {
         type: "error",
         text1: "Failed to withdraw",
         text2: error?.response?.data?.error || "Something went wrong",
+      });
+    },
+  });
+};
+
+export const useUpdateGigMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }) => updateGig(id, data),
+
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries(["gig", variables.id]);
+      queryClient.invalidateQueries(["my-gigs"]);
+
+      Toast.show({
+        type: "success",
+        text1: "Event updated successfully",
+      });
+    },
+
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to update event",
+        text2: error?.message || "Please try again",
       });
     },
   });

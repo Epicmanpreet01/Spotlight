@@ -26,6 +26,7 @@ export const useGigByIdQuery = (id) =>
   useQuery({
     queryKey: ["gig", id],
     enabled: !!id,
+
     queryFn: async () => {
       try {
         const res = await fetchGigById(id);
@@ -39,9 +40,14 @@ export const useGigByIdQuery = (id) =>
           text2: error?.message || "Please try again.",
         });
 
-        return null;
+        throw error;
       }
     },
+
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+
     retry: false,
   });
 
