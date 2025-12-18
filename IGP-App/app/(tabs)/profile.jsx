@@ -54,6 +54,9 @@ export default function ProfileScreen() {
   const myGigs = myGigsResp || [];
   const appliedGigs = appliedGigsResp || [];
 
+  console.log("Returned GIGS");
+  console.log(myGigs);
+  console.log(Array.isArray(myGigs), myGigs.length);
   const updateProfile = useUpdatePerformerProfileMutation();
 
   /* ===================== LOGOUT ===================== */
@@ -71,26 +74,11 @@ export default function ProfileScreen() {
           <BookerProfileHeader user={user} />
 
           <View style={{ marginTop: 20 }}>
-            <BookerActionsPanel
-              onBookings={() => setShowBookings(true)}
-              onEvents={() => setShowGigs(true)}
-            />
+            <BookerActionsPanel gigs={myGigs} bookings={bookings} />
           </View>
 
           <BookerSettingsPanel onLogout={handleLogout} />
         </ScrollView>
-
-        <CurrentGigsScreen
-          visible={showGigs}
-          onClose={() => setShowGigs(false)}
-          gigs={myGigs}
-        />
-
-        <PerformerBookingsScreen
-          visible={showBookings}
-          onClose={() => setShowBookings(false)}
-          bookings={bookings}
-        />
       </SafeAreaView>
     );
   }

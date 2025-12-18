@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,40 +11,36 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../context/ThemeContext";
 
-/* ===================== HOOKS ===================== */
-import { useMyBookingsQuery } from "../../../hooks/queries/useBookings";
-
-/* ===================== COMPONENTS ===================== */
+/* ===================== COMPONENT ===================== */
 import BookingItem from "../../common/BookingItem";
 
 export default function BookerBookingScreen({
   visible = false,
   onClose = () => {},
+  bookings = [],
 }) {
   const { theme } = useTheme();
   const router = useRouter();
-
   const [tab, setTab] = useState("current");
 
-  /* ===================== DATA ===================== */
-  const { data } = useMyBookingsQuery(visible);
-  const bookings = data?.data || [];
-
-  /* ===================== FILTERS ===================== */
-  const current = bookings.filter((b) =>
-    ["pending", "confirmed"].includes(b.status)
-  );
-
-  const past = bookings.filter((b) =>
-    ["completed", "cancelled", "declined"].includes(b.status)
-  );
+  /* ===================== DERIVED ===================== */
+  const { current, past } = useMemo(() => {
+    return {
+      current: bookings.filter((b) =>
+        ["pending", "confirmed"].includes(b.status)
+      ),
+      past: bookings.filter((b) =>
+        ["completed", "cancelled", "declined"].includes(b.status)
+      ),
+    };
+  }, [bookings]);
 
   return (
     <Modal visible={visible} animationType="slide">
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        {/* ================= HEADER ================= */}
+        {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
@@ -57,7 +53,7 @@ export default function BookerBookingScreen({
           <View style={{ width: 24 }} />
         </View>
 
-        {/* ================= TABS ================= */}
+        {/* TABS */}
         <View style={styles.tabs}>
           <TouchableOpacity
             style={[
@@ -86,7 +82,7 @@ export default function BookerBookingScreen({
           </TouchableOpacity>
         </View>
 
-        {/* ================= LIST ================= */}
+        {/* LIST */}
         <FlatList
           data={tab === "current" ? current : past}
           keyExtractor={(item) => item._id}
@@ -114,7 +110,7 @@ export default function BookerBookingScreen({
   );
 }
 
-/* ===================== STYLES ===================== */
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {

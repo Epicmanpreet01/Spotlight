@@ -477,8 +477,18 @@ export const getMyBookings = async (req, res) => {
     const bookings = await Booking.find({
       $or: [{ booker: user._id }, { performer: user._id }],
     })
-      .populate("booker", "name profileImage")
-      .populate("performer", "name profileImage")
+      .populate({
+        path: "booker",
+        select: "name profileImage",
+      })
+      .populate({
+        path: "performer",
+        select: "name profileImage",
+      })
+      .populate({
+        path: "gig",
+        select: "title previewImage budget location eventDate status",
+      })
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -486,7 +496,10 @@ export const getMyBookings = async (req, res) => {
       data: bookings,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, error: "Server error" });
+    console.error("getMyBookings error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
   }
 };

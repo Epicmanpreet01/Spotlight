@@ -31,6 +31,8 @@ export default function BookingItem({
 
   const price = booking?.totalPrice ?? (role === "performer" ? "--" : 0);
 
+  const formatAddress = (addr = "") => addr.split(",").slice(0, 2).join(", ");
+
   /* ===================== RENDER ===================== */
   return (
     <TouchableOpacity
@@ -43,8 +45,16 @@ export default function BookingItem({
           {title}
         </Text>
 
-        <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>
-          {dateText} • {address}
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{
+            color: theme.colors.textSecondary,
+            marginTop: 4,
+            maxWidth: "90%",
+          }}
+        >
+          {dateText} • {formatAddress(address)}
         </Text>
       </View>
 

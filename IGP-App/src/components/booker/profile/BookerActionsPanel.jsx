@@ -11,29 +11,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../context/ThemeContext";
 import { useRouter } from "expo-router";
 
-/* ===================== HOOKS ===================== */
-import { useMyGigsQuery } from "../../../hooks/queries/useGigs";
-
 /* ===================== COMPONENTS ===================== */
 import BookerBookingScreen from "./BookerBookingScreen";
 import BookerEventPreviewCard from "../events/BookerEventPreviewCard";
 
-export default function BookerActionsPanel() {
+export default function BookerActionsPanel({ gigs = [], bookings = [] }) {
   const { theme } = useTheme();
   const router = useRouter();
 
   const [showBookings, setShowBookings] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
 
-  /* ===================== DATA ===================== */
-  const { data: gigsResp } = useMyGigsQuery(true);
-  const gigs = gigsResp?.data || [];
-
   /* ===================== CURRENT EVENTS ===================== */
   const currentEvents = useMemo(() => {
     const now = new Date();
     return gigs.filter(
-      (g) => new Date(g.eventDate?.start) >= now && g.status !== "closed"
+      (g) =>
+        g?.eventDate?.start &&
+        new Date(g.eventDate.start) >= now &&
+        g.status !== "closed"
     );
   }, [gigs]);
 
@@ -54,13 +50,13 @@ export default function BookerActionsPanel() {
         <Text style={styles.actionText}>Current Performers / Events</Text>
       </TouchableOpacity>
 
-      {/* ===== SPACING BEFORE SETTINGS ===== */}
       <View style={{ height: 22 }} />
 
       {/* ================= BOOKINGS SCREEN ================= */}
       <BookerBookingScreen
         visible={showBookings}
         onClose={() => setShowBookings(false)}
+        bookings={bookings}
       />
 
       {/* ================= CURRENT EVENTS MODAL ================= */}
@@ -127,7 +123,7 @@ function Header({ title, onClose, theme }) {
   );
 }
 
-/* ================= STYLES ================= */
+/* ================= STYLES (UNCHANGED) ================= */
 const styles = StyleSheet.create({
   actionBtn: {
     paddingVertical: 14,
@@ -140,9 +136,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 15,
   },
-
   modalContainer: { flex: 1 },
-
   header: {
     paddingTop: 18,
     paddingHorizontal: 16,

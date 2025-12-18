@@ -13,7 +13,11 @@ import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
+export default function CurrentGigsScreen({
+  visible = false,
+  onClose = () => {},
+  gigs = [],
+}) {
   const { theme } = useTheme();
   const router = useRouter();
 
@@ -22,7 +26,7 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        {/* ================= HEADER ================= */}
+        {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
@@ -35,7 +39,7 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
           <View style={{ width: 24 }} />
         </View>
 
-        {/* ================= LIST ================= */}
+        {/* LIST */}
         <FlatList
           data={gigs}
           keyExtractor={(item) => item._id}
@@ -54,7 +58,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
                 style={[styles.card, { backgroundColor: theme.colors.card }]}
                 onPress={() => router.push(`/performer/gig-preview/${gig._id}`)}
               >
-                {/* IMAGE */}
                 {gig.previewImage && (
                   <Image
                     source={{ uri: gig.previewImage }}
@@ -62,7 +65,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
                   />
                 )}
 
-                {/* CONTENT */}
                 <View style={styles.body}>
                   <Text
                     style={[styles.cardTitle, { color: theme.colors.text }]}
@@ -70,7 +72,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
                     {gig.title}
                   </Text>
 
-                  {/* LOCATION */}
                   <View style={styles.row}>
                     <Ionicons
                       name="location-outline"
@@ -87,7 +88,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
                     </Text>
                   </View>
 
-                  {/* DATE */}
                   {eventDate && (
                     <View style={styles.row}>
                       <Ionicons
@@ -107,7 +107,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
                     </View>
                   )}
 
-                  {/* DESCRIPTION */}
                   <Text
                     style={[styles.desc, { color: theme.colors.textSecondary }]}
                     numberOfLines={2}
@@ -115,7 +114,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
                     {gig.description || "No description available"}
                   </Text>
 
-                  {/* BUDGET */}
                   <Text style={styles.budget}>₹{gig.budget}</Text>
                 </View>
               </TouchableOpacity>
@@ -138,7 +136,6 @@ export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
@@ -148,38 +145,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: { fontSize: 18, fontWeight: "700" },
-  card: {
-    borderRadius: 16,
-    marginBottom: 20,
-    overflow: "hidden",
-  },
-  banner: {
-    width: "100%",
-    height: 180,
-  },
-  body: {
-    padding: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 6,
-    gap: 6,
-  },
+  card: { borderRadius: 16, marginBottom: 20, overflow: "hidden" },
+  banner: { width: "100%", height: 180 },
+  body: { padding: 16 },
+  cardTitle: { fontSize: 18, fontWeight: "800" },
+  row: { flexDirection: "row", alignItems: "center", marginTop: 6, gap: 6 },
   meta: { fontSize: 13 },
-  desc: {
-    marginTop: 10,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  budget: {
-    marginTop: 12,
-    fontSize: 18,
-    fontWeight: "800",
-    color: "green",
-  },
+  desc: { marginTop: 10, fontSize: 14, lineHeight: 20 },
+  budget: { marginTop: 12, fontSize: 18, fontWeight: "800", color: "green" },
 });

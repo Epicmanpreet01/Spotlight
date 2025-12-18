@@ -11,20 +11,17 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
-/* ===================== COMPONENT ===================== */
 import BookingItem from "../common/BookingItem";
 
 export default function PerformerBookingsScreen({
   visible = false,
-  onClose,
+  onClose = () => {},
   bookings = [],
 }) {
   const { theme } = useTheme();
   const [tab, setTab] = useState("current");
   const router = useRouter();
 
-  /* ===================== DERIVED ===================== */
   const { current, past } = useMemo(() => {
     return {
       current: bookings.filter((b) =>
@@ -41,20 +38,16 @@ export default function PerformerBookingsScreen({
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        {/* ================= HEADER ================= */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
           </TouchableOpacity>
-
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Bookings
           </Text>
-
           <View style={{ width: 24 }} />
         </View>
 
-        {/* ================= TABS ================= */}
         <View style={styles.tabs}>
           {["current", "past"].map((t) => (
             <TouchableOpacity
@@ -72,14 +65,12 @@ export default function PerformerBookingsScreen({
           ))}
         </View>
 
-        {/* ================= LIST ================= */}
         <FlatList
           data={tab === "current" ? current : past}
           keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
             <BookingItem
               booking={item}
-              role={item.performer === item.booker ? "booker" : "performer"}
               onPress={() =>
                 router.push({
                   pathname: "/performer/booking-details/[id]",
@@ -105,7 +96,6 @@ export default function PerformerBookingsScreen({
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {

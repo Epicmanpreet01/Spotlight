@@ -5,13 +5,17 @@ import { useTheme } from "../../../context/ThemeContext";
 export default function BookerEventPreviewCard({ event, onPress }) {
   const { theme } = useTheme();
 
+  const address =
+    event.location?.address?.split(",").slice(0, 2).join(", ") ||
+    "Location not specified";
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={onPress}
       style={[styles.card, { backgroundColor: theme.colors.card }]}
     >
-      <Image source={{ uri: event.image }} style={styles.banner} />
+      <Image source={{ uri: event.previewImage }} style={styles.banner} />
 
       <View style={styles.body}>
         <Text style={[styles.title, { color: theme.colors.text }]}>
@@ -20,8 +24,12 @@ export default function BookerEventPreviewCard({ event, onPress }) {
 
         <View style={styles.row}>
           <Text style={styles.icon}>📍</Text>
-          <Text style={{ color: theme.colors.textSecondary }}>
-            {event.location.city}
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ color: theme.colors.textSecondary }}
+          >
+            {address}
           </Text>
         </View>
 
@@ -37,7 +45,7 @@ export default function BookerEventPreviewCard({ event, onPress }) {
           Description
         </Text>
 
-        <Text style={{ color: theme.colors.textSecondary }}>
+        <Text numberOfLines={2} style={{ color: theme.colors.textSecondary }}>
           {event.description}
         </Text>
 
