@@ -1,4 +1,3 @@
-// src/components/profile/ImageViewerModal.jsx
 import React from "react";
 import {
   Modal,
@@ -10,7 +9,10 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Video } from "expo-av";
 import { useTheme } from "../../context/ThemeContext";
+
+const isVideo = (uri = "") => uri.endsWith(".mp4") || uri.includes("video");
 
 export default function ImageViewerModal({
   visible = false,
@@ -24,11 +26,10 @@ export default function ImageViewerModal({
       visible={visible}
       animationType="fade"
       transparent
-      onRequestClose={onClose} // ✅ Android back button support
+      onRequestClose={onClose}
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        {/* CLOSE BUTTON */}
         <TouchableOpacity
           style={styles.closeBtn}
           onPress={onClose}
@@ -37,14 +38,23 @@ export default function ImageViewerModal({
           <Ionicons name="close" size={26} color="#fff" />
         </TouchableOpacity>
 
-        {/* IMAGE / FALLBACK */}
         {typeof uri === "string" && uri.length > 0 ? (
-          <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+          isVideo(uri) ? (
+            <Video
+              source={{ uri }}
+              style={styles.media}
+              useNativeControls
+              resizeMode="contain"
+              shouldPlay
+            />
+          ) : (
+            <Image source={{ uri }} style={styles.media} resizeMode="contain" />
+          )
         ) : (
           <View
             style={[styles.fallback, { backgroundColor: theme.colors.card }]}
           >
-            <Text style={{ color: theme.colors.textSecondary }}>No image</Text>
+            <Text style={{ color: theme.colors.textSecondary }}>No media</Text>
           </View>
         )}
       </View>
@@ -52,7 +62,6 @@ export default function ImageViewerModal({
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -60,7 +69,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  image: {
+  media: {
     width: "96%",
     height: "80%",
   },

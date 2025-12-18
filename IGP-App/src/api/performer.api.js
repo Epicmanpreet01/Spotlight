@@ -18,11 +18,13 @@ export const updatePerformerProfile = async (form) => {
 export const addPerformerGalleryImages = async (assets = []) => {
   const formData = new FormData();
 
-  assets.forEach((asset) => {
+  assets.forEach((asset, index) => {
+    const isVideo = asset.type === "video";
+
     formData.append("images", {
       uri: asset.uri,
-      name: "gallery.jpg",
-      type: "image/jpeg",
+      name: `gallery_${Date.now()}_${index}.${isVideo ? "mp4" : "jpg"}`,
+      type: isVideo ? "video/mp4" : "image/jpeg",
     });
   });
 

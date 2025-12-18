@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
+import * as VideoThumbnails from "expo-video-thumbnails";
 
 import ImageViewerModal from "./ImageViewerModal";
 
@@ -24,12 +25,14 @@ import {
   useRemoveGalleryImageMutation,
 } from "../../hooks/mutations/usePerformerMutation";
 
+const isVideo = (uri = "") => uri.endsWith(".mp4") || uri.includes("video");
+
 export default function PortfolioCard({ profile = {} }) {
   const { theme } = useTheme();
 
-  /* ===================== STATE ===================== */
   const [editing, setEditing] = useState(false);
   const [previewUri, setPreviewUri] = useState(null);
+  const [videoThumbs, setVideoThumbs] = useState({});
 
   const [bio, setBio] = useState("");
   const [price, setPrice] = useState("");
@@ -38,6 +41,7 @@ export default function PortfolioCard({ profile = {} }) {
     ? profile.galleryImages
     : [];
 
+  /* Sync ONLY when modal closes */
   useEffect(() => {
     if (!editing) {
       setBio(profile?.bio || "");
@@ -45,7 +49,6 @@ export default function PortfolioCard({ profile = {} }) {
     }
   }, [profile, editing]);
 
-  /* ===================== MUTATIONS ===================== */
   const updateProfileMutation = useUpdatePerformerProfileMutation();
   const addImagesMutation = useAddGalleryImagesMutation();
   const removeImageMutation = useRemoveGalleryImageMutation();
@@ -56,7 +59,7 @@ export default function PortfolioCard({ profile = {} }) {
     removeImageMutation.isLoading;
 
   /* ===================== IMAGE PICKER ===================== */
-  const pickImages = async () => {
+  const pickMedia = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission required", "Allow gallery access");
@@ -64,7 +67,7 @@ export default function PortfolioCard({ profile = {} }) {
     }
 
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
       quality: 0.8,
     });
@@ -89,31 +92,55 @@ export default function PortfolioCard({ profile = {} }) {
     }
   };
 
-  /* ===================== IMAGE RENDERERS ===================== */
-  const renderMainImage = ({ item }) => (
-    <Pressable onPress={() => setPreviewUri(item)}>
-      <Image source={{ uri: item }} style={styles.imageSmall} />
-    </Pressable>
-  );
+  /* ===================== THUMB ===================== */
+  const getVideoThumbnail = async (uri) => {
+    if (videoThumbs[uri]) return;
 
-  const renderModalImage = ({ item }) => (
-    <View style={styles.modalImageWrapper}>
-      <Pressable onPress={() => setPreviewUri(item)}>
-        <Image source={{ uri: item }} style={styles.modalImage} />
-      </Pressable>
+    try {
+      const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, {
+        time: 1000,
+      });
 
-      <TouchableOpacity
-        style={styles.modalRemoveBtn}
-        onPress={() => removeImageMutation.mutate({ imageUrl: item })}
-      >
-        <Ionicons name="close" size={16} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
+      setVideoThumbs((prev) => ({ ...prev, [uri]: thumbUri }));
+    } catch (e) {
+      console.warn("Thumbnail error:", e);
+    }
+  };
+
+  const renderThumb = (uri) => {
+    if (isVideo(uri)) {
+      if (!videoThumbs[uri]) {
+        getVideoThumbnail(uri);
+      }
+
+      return (
+        <View style={styles.thumbWrapper}>
+          {videoThumbs[uri] ? (
+            <Image source={{ uri: videoThumbs[uri] }} style={styles.thumb} />
+          ) : (
+            <View style={[styles.thumb, { backgroundColor: "#000" }]} />
+          )}
+
+          <Ionicons
+            name="play-circle"
+            size={26}
+            color="#fff"
+            style={styles.playIcon}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.thumbWrapper}>
+        <Image source={{ uri }} style={styles.thumb} />
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: theme.colors.text }]}>
           Portfolio
@@ -127,53 +154,59 @@ export default function PortfolioCard({ profile = {} }) {
         </TouchableOpacity>
       </View>
 
-      {/* ================= INFO ================= */}
-      <View style={{ marginTop: 10 }}>
-        <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-          Bio
-        </Text>
-        <Text style={[styles.value, { color: theme.colors.text }]}>
-          {bio || "No bio yet."}
-        </Text>
-      </View>
+      {/* INFO */}
+      <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+        Bio
+      </Text>
+      <Text style={[styles.value, { color: theme.colors.text }]}>
+        {bio || "No bio yet."}
+      </Text>
 
-      <View style={{ marginTop: 10 }}>
-        <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-          Starting Price (₹)
-        </Text>
-        <Text style={[styles.value, { color: theme.colors.text }]}>
-          {price ? `₹${price}` : "-"}
-        </Text>
-      </View>
+      <Text
+        style={[
+          styles.label,
+          { marginTop: 10, color: theme.colors.textSecondary },
+        ]}
+      >
+        Starting Price (₹)
+      </Text>
+      <Text style={[styles.value, { color: theme.colors.text }]}>
+        {price ? `₹${price}` : "-"}
+      </Text>
 
-      {/* ================= MAIN GALLERY ================= */}
-      <View style={{ marginTop: 12 }}>
-        <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-          Gallery
-        </Text>
+      {/* GALLERY */}
+      <Text
+        style={[
+          styles.label,
+          { marginTop: 12, color: theme.colors.textSecondary },
+        ]}
+      >
+        Gallery
+      </Text>
 
-        <FlatList
-          data={[...images, "__ADD__"]}
-          horizontal
-          keyExtractor={(i, idx) => i + idx}
-          renderItem={({ item }) =>
-            item === "__ADD__" ? (
-              <TouchableOpacity
-                onPress={() => setEditing(true)}
-                style={styles.addSquareSmall}
-              >
-                <Ionicons name="add" size={26} color="#fff" />
-              </TouchableOpacity>
-            ) : (
-              renderMainImage({ item })
-            )
-          }
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 6 }}
-        />
-      </View>
+      <FlatList
+        data={[...images, "__ADD__"]}
+        horizontal
+        keyExtractor={(i, idx) => i + idx}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 6 }}
+        renderItem={({ item }) =>
+          item === "__ADD__" ? (
+            <TouchableOpacity
+              style={styles.addSquare}
+              onPress={() => setEditing(true)}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <Pressable onPress={() => setPreviewUri(item)}>
+              {renderThumb(item)}
+            </Pressable>
+          )
+        }
+      />
 
-      {/* ================= EDIT MODAL ================= */}
+      {/* EDIT MODAL */}
       <Modal visible={editing} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View
@@ -188,19 +221,19 @@ export default function PortfolioCard({ profile = {} }) {
               Bio (max 500)
             </Text>
             <TextInput
+              value={bio}
+              onChangeText={(t) => setBio(t.slice(0, 500))}
+              multiline
               style={[
                 styles.textarea,
                 {
                   backgroundColor: theme.colors.inputBg,
-                  color: theme.colors.textSecondary,
+                  color: theme.colors.text,
                 },
               ]}
-              value={bio}
-              onChangeText={(t) => setBio(t.slice(0, 500))}
-              multiline
             />
 
-            {/* PRICE */}
+            {/* 🔥 RESTORED STARTING PRICE */}
             <Text
               style={[
                 styles.label,
@@ -210,19 +243,19 @@ export default function PortfolioCard({ profile = {} }) {
               Starting Price (₹)
             </Text>
             <TextInput
+              value={price}
+              onChangeText={setPrice}
+              keyboardType="numeric"
               style={[
                 styles.input,
                 {
                   backgroundColor: theme.colors.inputBg,
-                  color: theme.colors.textSecondary,
+                  color: theme.colors.text,
                 },
               ]}
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="numeric"
             />
 
-            {/* ===== MODAL GALLERY EDITOR ===== */}
+            {/* GALLERY */}
             <Text
               style={[
                 styles.label,
@@ -236,20 +269,31 @@ export default function PortfolioCard({ profile = {} }) {
               data={[...images, "__ADD__"]}
               horizontal
               keyExtractor={(i, idx) => i + idx}
+              contentContainerStyle={{ paddingVertical: 10 }}
               renderItem={({ item }) =>
                 item === "__ADD__" ? (
                   <TouchableOpacity
-                    onPress={pickImages}
-                    style={styles.modalAddSquare}
+                    style={styles.addSquare}
+                    onPress={pickMedia}
                   >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Ionicons name="add" size={24} color="#fff" />
                   </TouchableOpacity>
                 ) : (
-                  renderModalImage({ item })
+                  <View style={styles.modalImageWrapper}>
+                    <Pressable onPress={() => setPreviewUri(item)}>
+                      {renderThumb(item)}
+                    </Pressable>
+                    <TouchableOpacity
+                      style={styles.removeBtn}
+                      onPress={() =>
+                        removeImageMutation.mutate({ imageUrl: item })
+                      }
+                    >
+                      <Ionicons name="close" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
                 )
               }
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingVertical: 10 }}
             />
 
             {/* ACTIONS */}
@@ -268,16 +312,13 @@ export default function PortfolioCard({ profile = {} }) {
                 onPress={save}
                 disabled={saving}
               >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  {saving ? "Saving..." : "Save"}
-                </Text>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* ================= IMAGE PREVIEW ================= */}
       <ImageViewerModal
         visible={!!previewUri}
         uri={previewUri}
@@ -288,6 +329,8 @@ export default function PortfolioCard({ profile = {} }) {
 }
 
 /* ===================== STYLES ===================== */
+const SIZE = 64;
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
@@ -303,21 +346,32 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: "600" },
   value: { marginTop: 6, fontSize: 14 },
 
-  imageSmall: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
+  thumbWrapper: {
+    width: SIZE,
+    height: SIZE,
     marginRight: 10,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  thumb: {
+    width: SIZE,
+    height: SIZE,
+    borderRadius: 10,
+  },
+  playIcon: {
+    position: "absolute",
+    alignSelf: "center",
+    top: "30%",
   },
 
-  addSquareSmall: {
-    width: 64,
-    height: 64,
+  addSquare: {
+    width: SIZE,
+    height: SIZE,
     borderRadius: 10,
     backgroundColor: "#FF5722",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 10,
+    marginRight: 10,
   },
 
   modalOverlay: {
@@ -334,45 +388,30 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: "700" },
 
-  input: {
-    marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
   textarea: {
     marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    padding: 12,
     borderRadius: 10,
     minHeight: 100,
   },
-
-  modalImageWrapper: {
-    marginRight: 12,
-    position: "relative",
-  },
-  modalImage: {
-    width: 80,
-    height: 80,
+  input: {
+    marginTop: 6,
+    padding: 12,
     borderRadius: 10,
   },
-  modalRemoveBtn: {
+
+  modalImageWrapper: {
+    marginRight: 10,
+    position: "relative",
+  },
+  removeBtn: {
     position: "absolute",
     top: -6,
     right: -6,
     backgroundColor: "#FF5252",
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalAddSquare: {
-    width: 80,
-    height: 80,
+    width: 20,
+    height: 20,
     borderRadius: 10,
-    backgroundColor: "#FF5722",
     alignItems: "center",
     justifyContent: "center",
   },
