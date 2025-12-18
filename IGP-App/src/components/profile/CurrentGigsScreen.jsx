@@ -1,5 +1,5 @@
 // src/components/profile/CurrentGigsScreen.jsx
-import React, { useMemo } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -13,21 +13,9 @@ import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-/* ===================== HOOKS ===================== */
-import { useMyBookingsQuery } from "../../hooks/queries/useBookings";
-
-export default function CurrentGigsScreen({ visible, onClose }) {
+export default function CurrentGigsScreen({ visible, onClose, gigs = [] }) {
   const { theme } = useTheme();
   const router = useRouter();
-
-  /* ===================== DATA ===================== */
-  const { data: bookingsResp, isLoading } = useMyBookingsQuery(visible);
-  const bookings = bookingsResp?.data || [];
-
-  /* ===================== DERIVED: CURRENT GIGS ===================== */
-  const currentGigs = useMemo(() => {
-    return bookings.filter((b) => ["confirmed", "pending"].includes(b.status));
-  }, [bookings]);
 
   return (
     <Modal visible={visible} animationType="slide">
@@ -49,16 +37,15 @@ export default function CurrentGigsScreen({ visible, onClose }) {
 
         {/* ================= LIST ================= */}
         <FlatList
-          data={currentGigs}
+          data={gigs}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           renderItem={({ item }) => {
-            const gig = item.gig;
-
+            const gig = item.gig || item;
             if (!gig) return null;
 
-            const eventDate = item.eventDate?.start
-              ? new Date(item.eventDate.start)
+            const eventDate = gig.eventDate?.start
+              ? new Date(gig.eventDate.start)
               : null;
 
             return (
@@ -135,17 +122,15 @@ export default function CurrentGigsScreen({ visible, onClose }) {
             );
           }}
           ListEmptyComponent={
-            !isLoading && (
-              <Text
-                style={{
-                  textAlign: "center",
-                  color: theme.colors.textSecondary,
-                  marginTop: 40,
-                }}
-              >
-                No current gigs
-              </Text>
-            )
+            <Text
+              style={{
+                textAlign: "center",
+                color: theme.colors.textSecondary,
+                marginTop: 40,
+              }}
+            >
+              No current gigs
+            </Text>
           }
         />
       </View>
@@ -156,53 +141,41 @@ export default function CurrentGigsScreen({ visible, onClose }) {
 /* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
   header: {
     padding: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   title: { fontSize: 18, fontWeight: "700" },
-
   card: {
     borderRadius: 16,
     marginBottom: 20,
     overflow: "hidden",
   },
-
   banner: {
     width: "100%",
     height: 180,
   },
-
   body: {
     padding: 16,
   },
-
   cardTitle: {
     fontSize: 18,
     fontWeight: "800",
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 6,
     gap: 6,
   },
-
-  meta: {
-    fontSize: 13,
-  },
-
+  meta: { fontSize: 13 },
   desc: {
     marginTop: 10,
     fontSize: 14,
     lineHeight: 20,
   },
-
   budget: {
     marginTop: 12,
     fontSize: 18,

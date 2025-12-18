@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { loginUser, signupUser, logoutUser } from "../../api/auth.api.js";
 import Toast from "react-native-toast-message";
 import { setAuthToken, getBackendErrorMessage } from "../../api/api.js";

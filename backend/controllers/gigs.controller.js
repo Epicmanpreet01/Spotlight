@@ -186,18 +186,21 @@ export const getGigById = async (req, res) => {
 export const getMyGigs = async (req, res) => {
   const { user } = req;
 
-  if (!user)
-    return res
-      .status(400)
-      .json({ success: false, error: "Unauthorizer access" });
-
-  if (user.role !== "booker")
-    return res
-      .status(400)
-      .json({ success: false, error: "Unauthorized access" });
+  if (!user || user.role !== "booker") {
+    return res.status(401).json({
+      success: false,
+      error: "Unauthorized access",
+    });
+  }
 
   try {
-    const gigs = await Gig.find({ postedBy: user._id });
+    const now = new Date();
+
+    const gigs = await Gig.find({
+      postedBy: user._id,
+      status: "open",
+      "eventDate.start": { $gt: now },
+    });
 
     return res.status(200).json({
       success: true,
@@ -205,10 +208,11 @@ export const getMyGigs = async (req, res) => {
       data: gigs,
     });
   } catch (error) {
-    console.error(`Error occured while fetching user gigs: ${error}`);
-    return res
-      .status(500)
-      .json({ success: false, error: "Internal server error" });
+    console.error("Error fetching user gigs:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
   }
 };
 
@@ -227,8 +231,8 @@ export const getAppliedGigs = async (req, res) => {
 
     const gigs = await Gig.find({
       "applicants.performer": user._id,
-      "eventDate.start": { $gte: now },
-      status: { $ne: "closed" },
+      status: "open",
+      "eventDate.start": { $gt: now },
     })
       .select("-applicants")
       .populate("postedBy", "name profileImage")

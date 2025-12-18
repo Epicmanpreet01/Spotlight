@@ -17,6 +17,8 @@ import notificationRouter from "./routes/notification.routes.js";
 
 import initChatSocket from "./socket/chat.socket.js";
 
+import "./jobs/index.js";
+
 dotenv.config();
 const app = express();
 

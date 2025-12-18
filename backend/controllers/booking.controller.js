@@ -122,6 +122,15 @@ export const createBooking = async (req, res) => {
       { session }
     );
 
+    gig.status = "closed";
+    await gig.save({ session });
+
+    await PerformerProfile.updateMany(
+      { appliedGigs: gig._id },
+      { $pull: { appliedGigs: gig._id } },
+      { session }
+    );
+
     await PerformerProfile.updateOne(
       { user: performerId },
       { $addToSet: { bookings: booking._id } },

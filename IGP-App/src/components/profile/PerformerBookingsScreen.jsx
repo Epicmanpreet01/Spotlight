@@ -1,5 +1,5 @@
-// src/components/profile/PerformerBookingScreen.jsx
-import React, { useState } from "react";
+// src/components/profile/PerformerBookingsScreen.jsx
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,28 +12,29 @@ import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-/* ===================== HOOKS ===================== */
-import { useMyBookingsQuery } from "../../hooks/queries/useBookings";
-
-/* ===================== COMPONENTS ===================== */
+/* ===================== COMPONENT ===================== */
 import BookingItem from "../common/BookingItem";
 
-export default function PerformerBookingScreen({ visible = false, onClose }) {
+export default function PerformerBookingsScreen({
+  visible = false,
+  onClose,
+  bookings = [],
+}) {
   const { theme } = useTheme();
   const [tab, setTab] = useState("current");
   const router = useRouter();
 
-  /* ===================== DATA ===================== */
-  const { data: bookingsResp } = useMyBookingsQuery(visible);
-  const bookings = bookingsResp?.data || [];
-
-  const current = bookings.filter((b) =>
-    ["pending", "confirmed"].includes(b.status)
-  );
-
-  const past = bookings.filter((b) =>
-    ["completed", "cancelled", "declined"].includes(b.status)
-  );
+  /* ===================== DERIVED ===================== */
+  const { current, past } = useMemo(() => {
+    return {
+      current: bookings.filter((b) =>
+        ["pending", "confirmed"].includes(b.status)
+      ),
+      past: bookings.filter((b) =>
+        ["completed", "cancelled", "declined"].includes(b.status)
+      ),
+    };
+  }, [bookings]);
 
   return (
     <Modal visible={visible} animationType="slide">
@@ -78,7 +79,7 @@ export default function PerformerBookingScreen({ visible = false, onClose }) {
           renderItem={({ item }) => (
             <BookingItem
               booking={item}
-              role={"performer"}
+              role={item.performer === item.booker ? "booker" : "performer"}
               onPress={() =>
                 router.push({
                   pathname: "/performer/booking-details/[id]",

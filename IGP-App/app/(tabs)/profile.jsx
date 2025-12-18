@@ -13,7 +13,10 @@ import { useQueryClient } from "@tanstack/react-query";
 /* ===================== HOOKS ===================== */
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import { useMyBookingsQuery } from "../../src/hooks/queries/useBookings";
-import { useMyGigsQuery } from "../../src/hooks/queries/useGigs";
+import {
+  useMyGigsQuery,
+  useAppliedGigsQuery,
+} from "../../src/hooks/queries/useGigs";
 import { useUpdatePerformerProfileMutation } from "../../src/hooks/mutations/usePerformerMutation";
 
 /* ===================== COMPONENTS ===================== */
@@ -45,8 +48,12 @@ export default function ProfileScreen() {
   const { data: bookingsResp } = useMyBookingsQuery(!!user);
   const bookings = bookingsResp?.data || [];
 
-  const { data: gigs = [] } = useMyGigsQuery(role === "booker");
-  console.log(gigs);
+  const { data: myGigsResp } = useMyGigsQuery(role === "booker");
+  const { data: appliedGigsResp } = useAppliedGigsQuery(role === "performer");
+
+  const myGigs = myGigsResp || [];
+  const appliedGigs = appliedGigsResp || [];
+
   const updateProfile = useUpdatePerformerProfileMutation();
 
   /* ===================== LOGOUT ===================== */
@@ -76,7 +83,7 @@ export default function ProfileScreen() {
         <CurrentGigsScreen
           visible={showGigs}
           onClose={() => setShowGigs(false)}
-          gigs={gigs}
+          gigs={myGigs}
         />
 
         <PerformerBookingsScreen
@@ -148,11 +155,13 @@ export default function ProfileScreen() {
       <CurrentGigsScreen
         visible={showGigs}
         onClose={() => setShowGigs(false)}
+        gigs={appliedGigs}
       />
 
       <PerformerBookingsScreen
         visible={showBookings}
         onClose={() => setShowBookings(false)}
+        bookings={bookings}
       />
     </SafeAreaView>
   );
