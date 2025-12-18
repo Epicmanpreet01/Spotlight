@@ -1,28 +1,37 @@
-// src/components/profile/PerformerBookingItem.jsx
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 
-export default function PerformerBookingItem({ booking = {}, onPress }) {
+export default function BookingItem({
+  booking = {},
+  role = "booker", // "booker" | "performer"
+  onPress,
+}) {
   const { theme } = useTheme();
 
+  /* ===================== SAFE DERIVED VALUES ===================== */
   const status = booking?.status || "pending";
 
-  const statusColor =
-    status === "confirmed"
-      ? "#2E7D32"
-      : status === "pending"
-      ? "#FF9800"
-      : "#D32F2F";
+  const STATUS_COLORS = {
+    confirmed: "#2E7D32",
+    pending: "#FF9800",
+    declined: role === "performer" ? "#D32F2F" : "#1976D2",
+    cancelled: "#D32F2F",
+    completed: "#1976D2",
+  };
+
+  const statusColor = STATUS_COLORS[status] || "#1976D2";
 
   const title = booking?.gig?.title || "Event";
-  const address = booking?.gig?.location?.address || "Location";
-  const date = booking?.eventDate?.start
+  const address = booking?.gig?.location?.address || "Location not specified";
+
+  const dateText = booking?.eventDate?.start
     ? new Date(booking.eventDate.start).toLocaleDateString()
-    : "Date";
+    : "Date not set";
 
-  const totalPrice = booking?.totalPrice ?? "--";
+  const price = booking?.totalPrice ?? (role === "performer" ? "--" : 0);
 
+  /* ===================== RENDER ===================== */
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -34,8 +43,8 @@ export default function PerformerBookingItem({ booking = {}, onPress }) {
           {title}
         </Text>
 
-        <Text style={{ color: theme.colors.textSecondary }}>
-          {date} • {address}
+        <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>
+          {dateText} • {address}
         </Text>
       </View>
 
@@ -45,7 +54,7 @@ export default function PerformerBookingItem({ booking = {}, onPress }) {
         </Text>
 
         <Text style={{ marginTop: 6, fontWeight: "700", color: "#FF6F00" }}>
-          ₹{totalPrice}
+          ₹{price}
         </Text>
       </View>
     </TouchableOpacity>
@@ -58,6 +67,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
+    marginBottom: 6,
     flexDirection: "row",
     justifyContent: "space-between",
   },

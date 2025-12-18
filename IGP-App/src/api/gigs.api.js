@@ -11,7 +11,6 @@ export const fetchGigById = async (id) => {
 };
 
 export const createGig = async (formData) => {
-  // formData should be instance of FormData, include previewImage file under 'previewImage'
   const res = await api.post("/gigs/create", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
@@ -30,5 +29,10 @@ export const fetchMyGigs = async () => {
 
 export const withdrawFromGig = async (gigId) => {
   const res = await api.post(`/gigs/${gigId}/withdraw`);
+  return res.data;
+};
+
+export const fetchAppliedGigs = async () => {
+  const res = await api.get("/gigs/applied");
   return res.data;
 };

@@ -1,30 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { getPerformers, getPerformerById } from "../../api/performer.api";
 import Toast from "react-native-toast-message";
+import { useAuthGate } from "../useAuthGate";
 
-export const usePerformersQuery = (filters = {}, enabled = true) =>
-  useQuery({
+export const usePerformersQuery = (filters = {}) => {
+  const { isAuthed } = useAuthGate();
+
+  return useQuery({
     queryKey: ["performers", filters],
-    enabled,
+    enabled: isAuthed,
     queryFn: async () => {
-      try {
-        const res = await getPerformers(filters);
-        return res;
-      } catch (error) {
-        console.error("Error fetching performers:", error);
-
-        Toast.show({
-          type: "error",
-          text1: "Failed to load performers",
-          text2: error?.message || "Please try again.",
-        });
-
-        return null;
-      }
+      const res = await getPerformers(filters);
+      return res;
     },
     retry: false,
   });
-
+};
 export const usePerformerByIdQuery = (id) =>
   useQuery({
     queryKey: ["performer", id],

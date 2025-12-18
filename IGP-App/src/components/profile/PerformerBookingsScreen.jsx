@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import { useMyBookingsQuery } from "../../hooks/queries/useBookings";
 
 /* ===================== COMPONENTS ===================== */
-import PerformerBookingItem from "./PerformerBookingItem";
+import BookingItem from "../common/BookingItem";
 
 export default function PerformerBookingScreen({ visible = false, onClose }) {
   const { theme } = useTheme();
@@ -76,8 +76,9 @@ export default function PerformerBookingScreen({ visible = false, onClose }) {
           data={tab === "current" ? current : past}
           keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
-            <PerformerBookingItem
+            <BookingItem
               booking={item}
+              role={"performer"}
               onPress={() =>
                 router.push({
                   pathname: "/performer/booking-details/[id]",

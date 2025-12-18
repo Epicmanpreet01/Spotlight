@@ -24,3 +24,13 @@ export const getMyBookings = async () => {
   const res = await api.get("/booking/my-bookings");
   return res.data;
 };
+
+export const declineBooking = async (id) => {
+  const res = await api.put(`/booking/${id}/decline`);
+  return res.data;
+};
+
+export const cancelBooking = async (id) => {
+  const res = await api.put(`/booking/${id}/cancel`);
+  return res.data;
+};

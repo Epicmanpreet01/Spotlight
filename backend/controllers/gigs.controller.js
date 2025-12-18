@@ -183,6 +183,71 @@ export const getGigById = async (req, res) => {
   }
 };
 
+export const getMyGigs = async (req, res) => {
+  const { user } = req;
+
+  if (!user)
+    return res
+      .status(400)
+      .json({ success: false, error: "Unauthorizer access" });
+
+  if (user.role !== "booker")
+    return res
+      .status(400)
+      .json({ success: false, error: "Unauthorized access" });
+
+  try {
+    const gigs = await Gig.find({ postedBy: user._id });
+
+    return res.status(200).json({
+      success: true,
+      message: "Fetched gigs successfully",
+      data: gigs,
+    });
+  } catch (error) {
+    console.error(`Error occured while fetching user gigs: ${error}`);
+    return res
+      .status(500)
+      .json({ success: false, error: "Internal server error" });
+  }
+};
+
+export const getAppliedGigs = async (req, res) => {
+  const { user } = req;
+
+  if (!user || user.role !== "performer") {
+    return res.status(401).json({
+      success: false,
+      error: "Unauthorized access",
+    });
+  }
+
+  try {
+    const now = new Date();
+
+    const gigs = await Gig.find({
+      "applicants.performer": user._id,
+      "eventDate.start": { $gte: now },
+      status: { $ne: "closed" },
+    })
+      .select("-applicants")
+      .populate("postedBy", "name profileImage")
+      .sort({ "eventDate.start": 1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Applied gigs fetched successfully",
+      data: gigs,
+    });
+  } catch (error) {
+    console.error("Error fetching applied gigs:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
 // gig required fields -> gig
 export const createGig = async (req, res) => {
   const session = await mongoose.startSession();
@@ -698,35 +763,6 @@ export const closeGig = async (req, res) => {
     console.error("Error closing gig:", error);
     await session.abortTransaction();
     session.endSession();
-    return res
-      .status(500)
-      .json({ success: false, error: "Internal server error" });
-  }
-};
-
-export const getMyGigs = async (req, res) => {
-  const { user } = req;
-
-  if (!user)
-    return res
-      .status(400)
-      .json({ success: false, error: "Unauthorizer access" });
-
-  if (user.role !== "booker")
-    return res
-      .status(400)
-      .json({ success: false, error: "Unauthorized access" });
-
-  try {
-    const gigs = await Gig.find({ postedBy: user._id });
-
-    return res.status(200).json({
-      success: true,
-      message: "Fetched gigs successfully",
-      data: gigs,
-    });
-  } catch (error) {
-    console.error(`Error occured while fetching user gigs: ${error}`);
     return res
       .status(500)
       .json({ success: false, error: "Internal server error" });

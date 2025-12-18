@@ -3,6 +3,7 @@ import { loginUser, signupUser, logoutUser } from "../../api/auth.api.js";
 import Toast from "react-native-toast-message";
 import { setAuthToken, getBackendErrorMessage } from "../../api/api.js";
 import { router, useRouter } from "expo-router";
+import { useTheme } from "../../context/ThemeContext";
 
 export function useSignupMutation() {
   return useMutation({
@@ -35,45 +36,35 @@ export function useSignupMutation() {
 }
 
 export function useSigninMutation() {
+  const { setRoleTheme } = useTheme();
+
   return useMutation({
-    mutationFn: async (payload) => await loginUser(payload),
-    onError: (error) => {
-      const backendMessage = getBackendErrorMessage(error);
-      Toast.show({
-        type: "error",
-        text1: "Login failed",
-        text2: backendMessage,
-      });
-    },
+    mutationFn: loginUser,
+
     onSuccess: async (data) => {
       const token = data.token;
-      if (!token) {
-        Toast.show({
-          type: "error",
-          text1: "Login failed",
-          text2: "No token acquired",
-        });
-        return;
-      }
+      const role = data.data?.role;
 
       await setAuthToken(token);
 
-      // Redirect after LOGIN
+      setRoleTheme(role);
+
       router.replace("/(tabs)/home");
     },
   });
 }
 
 export const useLogoutMutation = () => {
-  const queryClient = useQueryClient();
   const router = useRouter();
+  const { resetTheme } = useTheme();
 
   return useMutation({
     mutationFn: logoutUser,
 
     onSuccess: async () => {
       await setAuthToken(null);
-      queryClient.clear();
+
+      resetTheme();
 
       router.replace("/(auth)/sign-in");
 
@@ -81,14 +72,6 @@ export const useLogoutMutation = () => {
         type: "success",
         text1: "Logged out",
       });
-    },
-
-    onError: async () => {
-      // Even if backend fails, logout locally
-      await setAuthToken(null);
-      queryClient.clear();
-
-      router.replace("/(auth)/sign-in");
     },
   });
 };

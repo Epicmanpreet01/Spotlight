@@ -2,25 +2,30 @@
 import React, { createContext, useState, useContext, useMemo } from "react";
 import { useColorScheme } from "react-native";
 import Colors from "../constants/Colors";
-import { useCurrentUser } from "../hooks/queries/useAuth";
 
 const ThemeContext = createContext();
 
 const PERFORMER_PRIMARY = Colors.primary;
-const BOOKER_PRIMARY = "#00BCD4";
+const BOOKER_PRIMARY = Colors.secondary;
+const NEUTRAL_PRIMARY = Colors.neutral;
 
 export const ThemeProvider = ({ children }) => {
   const systemScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemScheme === "dark");
+  const [primaryColor, setPrimaryColor] = useState(NEUTRAL_PRIMARY);
 
-  const { data: userResp } = useCurrentUser();
-  const role = userResp?.data?.role ?? null;
+  /* ========= EXPLICIT API ========= */
 
-  const rolePrimary = useMemo(() => {
-    if (role === "booker") return BOOKER_PRIMARY;
-    if (role === "performer") return PERFORMER_PRIMARY;
-    return PERFORMER_PRIMARY;
-  }, [role]);
+  const setRoleTheme = (role) => {
+    if (role === "performer") setPrimaryColor(PERFORMER_PRIMARY);
+    else if (role === "booker") setPrimaryColor(BOOKER_PRIMARY);
+    else setPrimaryColor(NEUTRAL_PRIMARY);
+  };
+
+  const resetTheme = () => {
+    setPrimaryColor(NEUTRAL_PRIMARY);
+    setIsDarkMode(systemScheme === "dark");
+  };
 
   const toggleTheme = () => setIsDarkMode((prev) => !prev);
 
@@ -35,7 +40,7 @@ export const ThemeProvider = ({ children }) => {
             textSecondary: "#A0A0A0",
             border: "#333333",
             inputBg: "#2C2C2C",
-            primary: rolePrimary,
+            primary: primaryColor,
             secondary: Colors.secondary,
             tint: "#FFF",
           }
@@ -46,16 +51,23 @@ export const ThemeProvider = ({ children }) => {
             textSecondary: Colors.textSecondary,
             border: "#E0E0E0",
             inputBg: "#F5F5F5",
-            primary: rolePrimary,
+            primary: primaryColor,
             secondary: Colors.secondary,
             tint: Colors.textPrimary,
           },
     }),
-    [isDarkMode, rolePrimary]
+    [isDarkMode, primaryColor]
   );
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme, theme }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        toggleTheme,
+        setRoleTheme,
+        resetTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

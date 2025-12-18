@@ -17,6 +17,7 @@ import {
   closeGig,
   deleteGig,
   getMyGigs,
+  getAppliedGigs,
 } from "../controllers/gigs.controller.js";
 
 import upload from "../middleware/upload.middleware.js";
@@ -32,6 +33,8 @@ router.get(
 );
 
 router.get("/my", authenticate, authorize(["booker"]), getMyGigs);
+
+router.get("/applied", authenticate, authorize(["performer"]), getAppliedGigs);
 
 router.get("/:gigId", authenticate, authorize(["performer"]), getGigById);
 

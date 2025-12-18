@@ -15,7 +15,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { useMyBookingsQuery } from "../../../hooks/queries/useBookings";
 
 /* ===================== COMPONENTS ===================== */
-import BookerBookingItem from "../../profile/BookerBookingItem";
+import BookingItem from "../../common/BookingItem";
 
 export default function BookerBookingScreen({
   visible = false,
@@ -92,7 +92,7 @@ export default function BookerBookingScreen({
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => (
-            <BookerBookingItem
+            <BookingItem
               booking={item}
               onPress={() => router.push(`/booking-details/${item._id}`)}
             />

@@ -45,15 +45,13 @@ export default function ProfileScreen() {
   const { data: bookingsResp } = useMyBookingsQuery(!!user);
   const bookings = bookingsResp?.data || [];
 
-  const { data: gigsResp } = useMyGigsQuery(role === "booker");
-  const gigs = gigsResp?.data || [];
-
+  const { data: gigs = [] } = useMyGigsQuery(role === "booker");
+  console.log(gigs);
   const updateProfile = useUpdatePerformerProfileMutation();
 
   /* ===================== LOGOUT ===================== */
   const handleLogout = () => {
     queryClient.clear();
-    // auth guard / root layout handles redirect
   };
 
   /* ===================== BOOKER PROFILE ===================== */

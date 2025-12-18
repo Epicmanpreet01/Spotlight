@@ -1,19 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "../../api/api";
+import { useAuthGate } from "../useAuthGate";
 
-export const useNotifications = () =>
-  useQuery({
+export const useNotifications = () => {
+  const { isAuthed } = useAuthGate();
+
+  return useQuery({
     queryKey: ["notifications"],
+    enabled: isAuthed,
     queryFn: async () => {
-      try {
-        const res = await api.get("/notifications");
-        return res?.data?.data || [];
-      } catch (error) {
-        console.warn("Failed to fetch notifications:", error?.message);
-        return [];
-      }
+      const res = await api.get("/notifications");
+      return res?.data?.data || [];
     },
-    refetchInterval: 5000,
+    refetchInterval: isAuthed ? 5000 : false,
     staleTime: 1000 * 30,
     retry: false,
   });
+};

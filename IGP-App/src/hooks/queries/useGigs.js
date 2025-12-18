@@ -1,29 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchGigs, fetchGigById, fetchMyGigs } from "../../api/gigs.api";
+import {
+  fetchGigs,
+  fetchGigById,
+  fetchMyGigs,
+  fetchAppliedGigs,
+} from "../../api/gigs.api";
 import Toast from "react-native-toast-message";
+import { useAuthGate } from "../useAuthGate";
 
-export const useGigsQuery = (filters = {}, enabled = true) =>
-  useQuery({
+export const useGigsQuery = (filters = {}) => {
+  const { isAuthed } = useAuthGate();
+
+  return useQuery({
     queryKey: ["gigs", filters],
-    enabled,
+    enabled: isAuthed,
     queryFn: async () => {
-      try {
-        const res = await fetchGigs(filters);
-        return res;
-      } catch (error) {
-        console.error("❌ Failed to fetch gigs:", error);
-
-        Toast.show({
-          type: "error",
-          text1: "Failed to load gigs",
-          text2: error?.message || "Please try again.",
-        });
-
-        return null;
-      }
+      const res = await fetchGigs(filters);
+      return res;
     },
     retry: false,
   });
+};
 
 export const useGigByIdQuery = (id) =>
   useQuery({
@@ -48,12 +45,28 @@ export const useGigByIdQuery = (id) =>
     retry: false,
   });
 
-export const useMyGigsQuery = (enabled = true) =>
-  useQuery({
+export const useMyGigsQuery = () => {
+  const { isAuthed } = useAuthGate();
+
+  return useQuery({
     queryKey: ["myGigs"],
-    enabled,
+    enabled: isAuthed,
     queryFn: async () => {
       const res = await fetchMyGigs();
       return res.data;
     },
   });
+};
+
+export const useAppliedGigsQuery = () => {
+  const { isAuthed } = useAuthGate();
+
+  return useQuery({
+    queryKey: ["appliedGigs"],
+    enabled: isAuthed,
+    queryFn: async () => {
+      const res = await fetchAppliedGigs();
+      return res.data;
+    },
+  });
+};

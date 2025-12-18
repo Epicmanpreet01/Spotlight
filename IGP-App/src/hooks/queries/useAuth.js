@@ -5,15 +5,11 @@ export const useCurrentUser = () =>
   useQuery({
     queryKey: ["currentUser"],
     queryFn: async () => {
-      try {
-        const res = await api.get("/auth/me");
-        return res.data;
-      } catch {
-        return null;
-      }
+      const res = await api.get("/auth/me");
+      return res.data;
     },
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
     retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
   });

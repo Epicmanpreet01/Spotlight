@@ -1,7 +1,7 @@
-import React from 'react';
-import { FlatList } from 'react-native';
-import { useRouter } from 'expo-router';
-import BookerPerformerCard from './BookerPerformerCard';
+import React from "react";
+import { FlatList } from "react-native";
+import { useRouter } from "expo-router";
+import BookerPerformerCard from "./BookerPerformerCard";
 
 export default function BookerNearbyList({ performers = [] }) {
   const router = useRouter();
