@@ -39,9 +39,11 @@ export default function PortfolioCard({ profile = {} }) {
     : [];
 
   useEffect(() => {
-    setBio(profile?.bio || "");
-    setPrice(profile?.priceStartingAt ? String(profile.priceStartingAt) : "");
-  }, [profile]);
+    if (!editing) {
+      setBio(profile?.bio || "");
+      setPrice(profile?.priceStartingAt ? String(profile.priceStartingAt) : "");
+    }
+  }, [profile, editing]);
 
   /* ===================== MUTATIONS ===================== */
   const updateProfileMutation = useUpdatePerformerProfileMutation();
