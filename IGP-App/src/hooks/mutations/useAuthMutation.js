@@ -6,6 +6,7 @@ import { router, useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
 
 export function useSignupMutation() {
+  const { setRoleTheme } = useTheme();
   return useMutation({
     mutationFn: async (payload) => await signupUser(payload),
     onError: (error) => {
@@ -17,6 +18,7 @@ export function useSignupMutation() {
     },
     onSuccess: async (data) => {
       const token = data.token;
+      const role = data.data?.role;
 
       if (!token) {
         Toast.show({
@@ -28,6 +30,8 @@ export function useSignupMutation() {
       }
 
       await setAuthToken(token);
+
+      setRoleTheme(role);
 
       // Redirect after successful SIGNUP
       router.replace("/(tabs)/home");

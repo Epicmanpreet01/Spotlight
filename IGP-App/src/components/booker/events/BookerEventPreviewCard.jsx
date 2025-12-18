@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import { useTheme } from "../../../context/ThemeContext";
+import { IMAGES } from "../../../constants/images";
 
 export default function BookerEventPreviewCard({ event, onPress }) {
   const { theme } = useTheme();
@@ -15,7 +16,12 @@ export default function BookerEventPreviewCard({ event, onPress }) {
       onPress={onPress}
       style={[styles.card, { backgroundColor: theme.colors.card }]}
     >
-      <Image source={{ uri: event.previewImage }} style={styles.banner} />
+      <Image
+        source={
+          event.previewImage ? { uri: event.previewImage } : IMAGES.NO_IMAGE
+        }
+        style={styles.banner}
+      />
 
       <View style={styles.body}>
         <Text style={[styles.title, { color: theme.colors.text }]}>

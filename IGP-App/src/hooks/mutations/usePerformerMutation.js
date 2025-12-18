@@ -4,8 +4,8 @@ import Toast from "react-native-toast-message";
 /* ================= API ================= */
 import {
   updatePerformerProfile,
-  addGalleryImages,
-  removeGalleryImage,
+  addPerformerGalleryImages,
+  removePerformerGalleryImage,
 } from "../../api/performer.api";
 
 /* ================= UPDATE PROFILE ================= */
@@ -36,7 +36,7 @@ export const useAddGalleryImagesMutation = () => {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: addGalleryImages,
+    mutationFn: addPerformerGalleryImages,
 
     onSuccess: () => {
       qc.invalidateQueries(["currentUser"]);
@@ -59,7 +59,7 @@ export const useRemoveGalleryImageMutation = () => {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: removeGalleryImage,
+    mutationFn: removePerformerGalleryImage,
 
     onSuccess: () => {
       qc.invalidateQueries(["currentUser"]);

@@ -43,7 +43,9 @@ export default function ProfileScreen() {
   const { data: me } = useCurrentUser();
   const user = me?.data;
   const role = user?.role;
-
+  const profile = me?.profile;
+  console.log("user", user);
+  console.log("PROFILE: ", profile);
   /* ===================== DATA ===================== */
   const { data: bookingsResp } = useMyBookingsQuery(!!user);
   const bookings = bookingsResp?.data || [];
@@ -111,7 +113,7 @@ export default function ProfileScreen() {
         <View style={{ height: 12 }} />
 
         <PortfolioCard
-          profile={user.profile || {}}
+          profile={profile || {}}
           onSave={(payload) => updateProfile.mutate(payload)}
         />
 

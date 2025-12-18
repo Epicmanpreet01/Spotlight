@@ -43,6 +43,7 @@ export const useApplyToGigMutation = (gigId) => {
       });
 
       queryClient.invalidateQueries(["gig", gigId]);
+      queryClient.invalidateQueries(["appliedGigs"]);
       queryClient.invalidateQueries(["gigs"]);
     },
 
@@ -69,6 +70,7 @@ export const useWithdrawFromGigMutation = (gigId) => {
       });
 
       queryClient.invalidateQueries(["gig", gigId]);
+      queryClient.invalidateQueries(["appliedGigs"]);
       queryClient.invalidateQueries(["gigs"]);
     },
 

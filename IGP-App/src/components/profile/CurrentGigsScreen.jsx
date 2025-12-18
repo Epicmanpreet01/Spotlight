@@ -12,6 +12,7 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { IMAGES } from "../../constants/images";
 
 export default function CurrentGigsScreen({
   visible = false,
@@ -58,12 +59,14 @@ export default function CurrentGigsScreen({
                 style={[styles.card, { backgroundColor: theme.colors.card }]}
                 onPress={() => router.push(`/performer/gig-preview/${gig._id}`)}
               >
-                {gig.previewImage && (
-                  <Image
-                    source={{ uri: gig.previewImage }}
-                    style={styles.banner}
-                  />
-                )}
+                <Image
+                  source={
+                    gig.previewImage
+                      ? { uri: gig.previewImage }
+                      : IMAGES.NO_IMAGE
+                  }
+                  style={styles.banner}
+                />
 
                 <View style={styles.body}>
                   <Text
