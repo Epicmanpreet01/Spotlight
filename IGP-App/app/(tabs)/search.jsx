@@ -112,9 +112,15 @@ export default function SearchScreen() {
         p.user?.name?.toLowerCase().includes(q) ||
         p.bio?.toLowerCase().includes(q);
 
-      return byCategory && byQuery;
+      let byBudget = true;
+      if (budgetFilter?.min != null) {
+        const b = Number(p.priceStartingAt || 0);
+        byBudget = b >= budgetFilter.min && b <= (budgetFilter.max ?? b);
+      }
+
+      return byCategory && byQuery && byBudget;
     });
-  }, [performers, activeCategory, queryText]);
+  }, [performers, activeCategory, queryText, budgetFilter]);
 
   /* ===================== BOOKER VIEW ===================== */
   if (role === "booker") {

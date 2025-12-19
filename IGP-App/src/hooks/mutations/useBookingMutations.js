@@ -7,6 +7,7 @@ import {
   acceptBooking,
   confirmBooking,
   completeBooking,
+  cancelBooking,
 } from "../../api/booking.api";
 
 /* ===================== CREATE ===================== */
@@ -38,11 +39,11 @@ export const useCreateBookingMutation = () => {
 };
 
 /* ===================== ACCEPT ===================== */
-export const useAcceptBookingMutation = () => {
+export const useAcceptBookingMutation = (id) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: acceptBooking,
+    mutationFn: () => acceptBooking(id),
     onSuccess: () => {
       Toast.show({
         type: "success",
@@ -54,16 +55,24 @@ export const useAcceptBookingMutation = () => {
       queryClient.invalidateQueries(["appliedGigs"]);
       queryClient.invalidateQueries(["gig"]);
       queryClient.invalidateQueries(["notifications"]);
+      queryClient.invalidateQueries(["booking", id]);
+    },
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to create booking",
+        text2: error?.response?.data?.error || "Please try again",
+      });
     },
   });
 };
 
 /* ===================== CONFIRM ===================== */
-export const useConfirmBookingMutation = () => {
+export const useConfirmBookingMutation = (id) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: confirmBooking,
+    mutationFn: () => confirmBooking(id),
     onSuccess: () => {
       Toast.show({
         type: "success",
@@ -72,6 +81,14 @@ export const useConfirmBookingMutation = () => {
 
       queryClient.invalidateQueries(["myBookings"]);
       queryClient.invalidateQueries(["notifications"]);
+      queryClient.invalidateQueries(["booking", id]);
+    },
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to create booking",
+        text2: error?.response?.data?.error || "Please try again",
+      });
     },
   });
 };
@@ -88,8 +105,41 @@ export const useCompleteBookingMutation = () => {
         text1: "Booking completed",
       });
 
+      queryClient.invalidateQueries(["booking"]);
       queryClient.invalidateQueries(["myBookings"]);
       queryClient.invalidateQueries(["notifications"]);
+    },
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to create booking",
+        text2: error?.response?.data?.error || "Please try again",
+      });
+    },
+  });
+};
+
+export const useCancelBookingMutation = (id) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => cancelBooking(id),
+    onSuccess: () => {
+      Toast.show({
+        type: "success",
+        text1: "Booking completed",
+      });
+
+      queryClient.invalidateQueries(["booking"]);
+      queryClient.invalidateQueries(["myBookings"]);
+      queryClient.invalidateQueries(["notifications"]);
+    },
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to create booking",
+        text2: error?.response?.data?.error || "Please try again",
+      });
     },
   });
 };

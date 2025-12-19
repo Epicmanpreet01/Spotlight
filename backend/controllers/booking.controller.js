@@ -14,6 +14,66 @@ function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
 }
 
+// get booking by id (booker or performer)
+export const getBookingById = async (req, res) => {
+  const { user } = req;
+  const { id } = req.params;
+
+  try {
+    const booking = await Booking.findById(id)
+      .populate({
+        path: "booker",
+        select: "name profileImage",
+      })
+      .populate({
+        path: "performer",
+        select: "name profileImage",
+      })
+      .populate({
+        path: "gig",
+        select:
+          "title description previewImage budget location eventDate status",
+      })
+      .select("+completionCode")
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        error: "Booking not found",
+      });
+    }
+
+    const isBooker = booking.booker._id.toString() === user._id.toString();
+    const isPerformer =
+      booking.performer._id.toString() === user._id.toString();
+
+    if (!isBooker && !isPerformer) {
+      return res.status(403).json({
+        success: false,
+        error: "You are not authorized to view this booking",
+      });
+    }
+
+    // 🔐 Hide sensitive fields
+    if (!isBooker) {
+      delete booking.completionCode;
+      delete booking.paymentStatus;
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: booking,
+    });
+  } catch (error) {
+    console.error("getBookingById error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
 // create booking (booker → performer) required fields -> created booking
 export const createBooking = async (req, res) => {
   const session = await mongoose.startSession();
@@ -28,7 +88,7 @@ export const createBooking = async (req, res) => {
     totalPrice,
     source = "direct", // "direct" | "applicant"
   } = req.cleanedBody;
-
+  console.log(source);
   if (user.role !== "booker") {
     await session.abortTransaction();
     session.endSession();

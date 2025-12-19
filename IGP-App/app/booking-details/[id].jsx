@@ -1,51 +1,53 @@
-// app/booking-details/[id].jsx
-import React, { useMemo } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../src/api/api";
-import { useTheme } from "../../src/context/ThemeContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../src/context/ThemeContext";
+
+/* 🔗 Hooks */
+import { useBookingById } from "../../src/hooks/queries/useBookings";
+import { useCurrentUser } from "../../src/hooks/queries/useAuth"; // ✅ ADD
+import {
+  useConfirmBookingMutation,
+  useCancelBookingMutation,
+} from "../../src/hooks/mutations/useBookingMutations";
 
 export default function BookingDetails() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { theme } = useTheme();
 
-  // ✅ HOOK MUST BE HERE (before returns)
-  const otp = useMemo(() => {
-    if (!id) return "000000";
+  const { data, isLoading } = useBookingById(id);
+  const booking = data?.data;
 
-    // create stable 6-digit OTP from booking id
-    const numeric = id.replace(/\D/g, "");
-    return (numeric + "000000").slice(-6);
-  }, [id]);
+  const { data: currentUser } = useCurrentUser(); // ✅ ADD
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["booking-details", id],
-    queryFn: async () => (await api.get(`/booking/details/${id}`)).data,
-  });
+  const { mutate: confirmBooking, isPending: confirming } =
+    useConfirmBookingMutation(id);
+
+  const { mutate: cancelBooking, isPending: cancelling } =
+    useCancelBookingMutation(id);
 
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <Text>Loading booking...</Text>
+        <Text style={{ color: theme.colors.text }}>Loading booking...</Text>
       </View>
     );
   }
 
-  const booking = data?.data;
   if (!booking) {
     return (
       <View style={styles.center}>
-        <Text>Booking not found</Text>
+        <Text style={{ color: theme.colors.text }}>Booking not found</Text>
       </View>
     );
   }
@@ -54,12 +56,34 @@ export default function BookingDetails() {
     booking.status
   );
 
+  // ✅ CORRECT BOOKER CHECK
+  const isBooker = booking.booker?._id === currentUser?.data?._id;
+
+  // ✅ CANCEL RULE (matches backend)
+  const canCancel =
+    isBooker && ["pending", "accepted"].includes(booking.status);
+
   const statusColor =
     booking.status === "confirmed"
       ? "#2E7D32"
       : booking.status === "pending"
       ? "#FF9800"
       : "#D32F2F";
+
+  const handleCancel = () => {
+    Alert.alert(
+      "Cancel Booking",
+      "Are you sure you want to cancel this booking?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: () => cancelBooking(),
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -78,7 +102,7 @@ export default function BookingDetails() {
         {/* EVENT CARD */}
         <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.eventTitle, { color: theme.colors.text }]}>
-            {booking.event.title}
+            {booking.gig?.title}
           </Text>
 
           <View style={styles.metaRow}>
@@ -90,7 +114,7 @@ export default function BookingDetails() {
             <Text
               style={[styles.metaText, { color: theme.colors.textSecondary }]}
             >
-              {booking.event.location}
+              {booking.gig?.location?.address}
             </Text>
           </View>
 
@@ -103,7 +127,8 @@ export default function BookingDetails() {
             <Text
               style={[styles.metaText, { color: theme.colors.textSecondary }]}
             >
-              {booking.event.dateTime}
+              {new Date(booking.eventDate.start).toDateString()} –{" "}
+              {new Date(booking.eventDate.end).toDateString()}
             </Text>
           </View>
         </View>
@@ -116,7 +141,7 @@ export default function BookingDetails() {
           <Text
             style={[styles.bodyText, { color: theme.colors.textSecondary }]}
           >
-            {booking.event.description}
+            {booking.gig?.description}
           </Text>
         </View>
 
@@ -127,26 +152,37 @@ export default function BookingDetails() {
           </Text>
 
           <Text style={{ color: theme.colors.textSecondary }}>
-            {booking.performer.name} • {booking.performer.category}
+            {booking.performer?.name}
           </Text>
         </View>
 
-        {/* ✅ EVENT COMPLETION OTP (Booker Side) */}
-        {/* ✅ EVENT COMPLETION OTP (Booker Side) */}
-        {!isPast && (
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Event Completion OTP
+        {/* CONFIRM BOOKING */}
+        {booking.status === "accepted" && isBooker && (
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={() => confirmBooking()}
+            disabled={confirming}
+          >
+            <Text style={styles.actionText}>
+              {confirming ? "Confirming..." : "Confirm Booking"}
             </Text>
+          </TouchableOpacity>
+        )}
 
-            <View style={styles.otpBox}>
-              <Text style={styles.otpText}>{otp}</Text>
-            </View>
-
-            <Text style={styles.otpHint}>
-              ❗ Share this OTP with the performer after the event is completed.
+        {/* ✅ CANCEL BOOKING (NOW WORKS) */}
+        {canCancel && (
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#D32F2F" }]}
+            onPress={handleCancel}
+            disabled={cancelling}
+          >
+            <Text style={styles.actionText}>
+              {cancelling ? "Cancelling..." : "Cancel Booking"}
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* STATUS */}
@@ -167,7 +203,7 @@ export default function BookingDetails() {
             Price
           </Text>
           <Text style={[styles.price, { color: theme.colors.primary }]}>
-            ₹{booking.price}
+            ₹{booking.totalPrice}
           </Text>
         </View>
       </ScrollView>
@@ -175,6 +211,7 @@ export default function BookingDetails() {
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
@@ -200,17 +237,6 @@ const styles = StyleSheet.create({
 
   bodyText: { lineHeight: 20 },
 
-  otpBox: {
-    marginTop: 10,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#E3F2FD",
-    alignItems: "center",
-  },
-  otpText: { fontSize: 26, fontWeight: "800", letterSpacing: 4 },
-
-  otpHint: { marginTop: 8, fontSize: 12, color: "#777" },
-
   statusBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
@@ -221,4 +247,12 @@ const styles = StyleSheet.create({
   statusText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
   price: { fontSize: 22, fontWeight: "800" },
+
+  actionBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  actionText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

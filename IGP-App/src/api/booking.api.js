@@ -25,6 +25,11 @@ export const getMyBookings = async () => {
   return res.data;
 };
 
+export const getBookingById = async (id) => {
+  const res = await api.get(`/booking/${id}`);
+  return res.data;
+};
+
 export const declineBooking = async (id) => {
   const res = await api.put(`/booking/${id}/decline`);
   return res.data;

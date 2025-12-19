@@ -10,6 +10,7 @@ import {
   completeBooking,
   cancelBooking,
   getMyBookings,
+  getBookingById,
 } from "../controllers/booking.controller.js";
 
 import { validBookingCreateSchema } from "../models/validation.model.js";
@@ -25,7 +26,7 @@ router.post(
 );
 
 router.get("/my-bookings", authenticate, getMyBookings);
-
+router.get("/:id", authenticate, getBookingById);
 router.put(
   "/:id/accept",
   authenticate,
