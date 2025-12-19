@@ -1,4 +1,3 @@
-// app/performer/gig-preview/[id].jsx
 import React from "react";
 import {
   View,
@@ -10,37 +9,37 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
-import api from "../../../src/api/api";
 import { useTheme } from "../../../src/context/ThemeContext";
+
+/* 🔗 Hooks */
+import { useGigByIdQuery } from "../../../src/hooks/queries/useGigs";
+import {
+  useApplyToGigMutation,
+  useWithdrawFromGigMutation,
+} from "../../../src/hooks/mutations/useGigMutation";
 
 export default function PerformerGigPreview() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { theme } = useTheme();
 
-  const { data } = useQuery({
-    queryKey: ["gig-preview", id],
-    queryFn: async () => (await api.get("/booker/events")).data,
-  });
+  /* ===================== FETCH GIG ===================== */
+  const { data, isLoading } = useGigByIdQuery(id);
+  const gig = data?.data;
 
-  const gig = data?.data?.find((e) => e._id === id);
-  if (!gig) return null;
+  /* ===================== MUTATIONS ===================== */
+  const { mutate: applyToGig, isPending: applying } = useApplyToGigMutation(id);
 
-  const handleAccept = async () => {
-    await api.post("/booking/create", { gigId: gig._id });
-    queryClient.invalidateQueries(["performerBookings"]);
-    router.back();
-  };
+  const { mutate: withdrawGig, isPending: withdrawing } =
+    useWithdrawFromGigMutation(id);
 
-  const handleReject = async () => {
-    await api.post("/booking/reject", { gigId: gig._id });
-    router.back();
-  };
+  if (isLoading || !gig) return null;
 
-  const eventDate = new Date(gig.eventDate.start);
+  const eventStart = new Date(gig.eventDate.start);
+  const eventEnd = new Date(gig.eventDate.end);
+
+  const hasApplied = gig.hasApplied;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -57,7 +56,7 @@ export default function PerformerGigPreview() {
 
       <ScrollView contentContainerStyle={styles.container}>
         {/* IMAGE */}
-        <Image source={{ uri: gig.image }} style={styles.banner} />
+        <Image source={{ uri: gig.previewImage }} style={styles.banner} />
 
         {/* TITLE */}
         <Text style={[styles.title, { color: theme.colors.text }]}>
@@ -75,7 +74,7 @@ export default function PerformerGigPreview() {
             <Text
               style={[styles.metaText, { color: theme.colors.textSecondary }]}
             >
-              {gig.location.address}, {gig.location.city}
+              {gig.location.address}
             </Text>
           </View>
 
@@ -88,11 +87,7 @@ export default function PerformerGigPreview() {
             <Text
               style={[styles.metaText, { color: theme.colors.textSecondary }]}
             >
-              {eventDate.toLocaleDateString()} •{" "}
-              {eventDate.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {eventStart.toDateString()} – {eventEnd.toDateString()}
             </Text>
           </View>
         </View>
@@ -120,21 +115,37 @@ export default function PerformerGigPreview() {
 
       {/* ACTION BUTTONS */}
       <View style={styles.actions}>
-        <TouchableOpacity style={[styles.rejectBtn]} onPress={handleReject}>
-          <Text style={styles.actionText}>Reject</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.acceptBtn, { backgroundColor: theme.colors.primary }]}
-          onPress={handleAccept}
-        >
-          <Text style={styles.actionText}>Accept</Text>
-        </TouchableOpacity>
+        {hasApplied && (
+          <TouchableOpacity
+            style={styles.rejectBtn}
+            onPress={() => withdrawGig()}
+            disabled={withdrawing}
+          >
+            <Text style={styles.actionText}>
+              {withdrawing ? "Withdrawing..." : "Withdraw"}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {!hasApplied && (
+          <TouchableOpacity
+            style={[
+              styles.acceptBtn,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={() => applyToGig({})}
+            disabled={applying}
+          >
+            <Text style={styles.actionText}>
+              {applying ? "Applying..." : "Accept"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   header: {
     padding: 16,
