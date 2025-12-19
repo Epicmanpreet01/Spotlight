@@ -18,8 +18,8 @@ export const useGigsQuery = (filters = {}) => {
       const res = await fetchGigs(filters);
       return res;
     },
-
     refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
     retry: false,
   });
 };

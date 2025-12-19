@@ -13,6 +13,8 @@ export const usePerformersQuery = (filters = {}) => {
       const res = await getPerformers(filters);
       return res;
     },
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
     retry: false,
   });
 };
@@ -36,5 +38,6 @@ export const usePerformerByIdQuery = (id) =>
         return null;
       }
     },
+
     retry: false,
   });
