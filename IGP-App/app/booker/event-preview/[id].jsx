@@ -17,6 +17,7 @@ import { useTheme } from "../../../src/context/ThemeContext";
 /* ===================== HOOKS ===================== */
 import { useGigByIdQuery } from "../../../src/hooks/queries/useGigs";
 import { useCreateBookingMutation } from "../../../src/hooks/mutations/useBookingMutations";
+import { useCloseGigMutation } from "../../../src/hooks/mutations/useGigMutation";
 
 export default function BookerEventPreview() {
   const { id } = useLocalSearchParams();
@@ -31,8 +32,9 @@ export default function BookerEventPreview() {
   const event = gigResp?.data;
 
   /* ================= BOOKING ================= */
-  const { mutate: createBooking, isLoading: hiring } =
-    useCreateBookingMutation();
+  const { mutate: createBooking } = useCreateBookingMutation();
+
+  const { mutate: closeGig } = useCloseGigMutation(id);
 
   if (isLoading || !event) return null;
 
@@ -56,6 +58,12 @@ export default function BookerEventPreview() {
         },
       }
     );
+  };
+
+  const handleClose = () => {
+    closeGig();
+    setShowMenu(false);
+    router.replace("/(tabs)/profile");
   };
 
   return (
@@ -234,10 +242,7 @@ export default function BookerEventPreview() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.modalBtn}
-              onPress={() => setShowMenu(false)}
-            >
+            <TouchableOpacity style={styles.modalBtn} onPress={handleClose}>
               <Text style={[styles.modalText, { color: "#D32F2F" }]}>
                 Cancel Event
               </Text>

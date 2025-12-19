@@ -5,7 +5,6 @@ import {
   validGigFilterSchema,
   validGigSchema,
   validApplySchema,
-  validCloseGigSchema,
 } from "../models/validation.model.js";
 import {
   getGigs,
@@ -73,12 +72,6 @@ router.post(
   withdrawApplication
 );
 
-router.put(
-  "/close/:gigId",
-  authenticate,
-  authorize(["booker"]),
-  validateInput(validCloseGigSchema),
-  closeGig
-);
+router.put("/close/:gigId", authenticate, authorize(["booker"]), closeGig);
 
 export default router;

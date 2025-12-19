@@ -186,13 +186,6 @@ export const validApplySchema = {
   },
 };
 
-export const validCloseGigSchema = {
-  reason: {
-    type: "string",
-    maxLength: 300,
-  },
-};
-
 export const validReviewSchema = {
   rating: {
     type: "number",

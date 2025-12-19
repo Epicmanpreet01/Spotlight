@@ -33,8 +33,8 @@ export default function EditEventScreen() {
   const { data: gigResp, isLoading } = useGigByIdQuery(id);
   const gig = gigResp?.data;
 
-  const { mutate: updateGig, status } = useUpdateGigMutation();
-  const isPending = status === "pending";
+  const { mutate: updateGig, isLoading: updateGigLoading } =
+    useUpdateGigMutation();
 
   /* ===================== STATE ===================== */
   const [image, setImage] = useState(null);
@@ -285,12 +285,12 @@ export default function EditEventScreen() {
           style={[
             styles.createBtn,
             { backgroundColor: theme.colors.primary },
-            isPending && { opacity: 0.7 },
+            updateGigLoading && { opacity: 0.7 },
           ]}
           onPress={handleUpdate}
-          disabled={isPending}
+          disabled={updateGigLoading}
         >
-          {isPending ? (
+          {updateGigLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.createText}>Update Event</Text>

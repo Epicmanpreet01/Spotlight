@@ -34,8 +34,7 @@ export default function BookerCreateEventForm({ hireContext }) {
   const router = useRouter();
   const { theme } = useTheme();
 
-  const { mutate: createGig, status } = useCreateGigMutation();
-  const isPending = status === "pending";
+  const { mutate: createGig, isLoading } = useCreateGigMutation();
 
   /* ===================== FORM STATE ===================== */
   const [image, setImage] = useState(null);
@@ -335,11 +334,11 @@ export default function BookerCreateEventForm({ hireContext }) {
         />
 
         <TouchableOpacity
-          style={[styles.createBtn, isPending && { opacity: 0.7 }]}
+          style={[styles.createBtn, isLoading && { opacity: 0.7 }]}
           onPress={handleCreate}
-          disabled={isPending}
+          disabled={isLoading}
         >
-          {isPending ? (
+          {isLoading ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <Text style={styles.createText}>Create Event</Text>

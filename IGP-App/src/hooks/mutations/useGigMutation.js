@@ -5,6 +5,7 @@ import {
   applyToGig,
   withdrawFromGig,
   updateGig,
+  closeGig,
 } from "../../api/gigs.api";
 
 export const useCreateGigMutation = () => {
@@ -97,7 +98,7 @@ export const useUpdateGigMutation = () => {
 
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries(["gig", variables.id]);
-      queryClient.invalidateQueries(["my-gigs"]);
+      queryClient.invalidateQueries(["myGigs"]);
 
       Toast.show({
         type: "success",
@@ -105,6 +106,30 @@ export const useUpdateGigMutation = () => {
       });
     },
 
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to update event",
+        text2: error?.message || "Please try again",
+      });
+    },
+  });
+};
+
+export const useCloseGigMutation = (gigId) => {
+  const queryClient = useQueryClient();
+  console.log(gigId);
+  return useMutation({
+    mutationFn: () => closeGig(gigId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["gig", gigId]);
+      queryClient.invalidateQueries(["myGigs"]);
+
+      Toast.show({
+        type: "success",
+        text1: "Event closed successfully",
+      });
+    },
     onError: (error) => {
       Toast.show({
         type: "error",

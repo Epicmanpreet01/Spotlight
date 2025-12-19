@@ -706,11 +706,10 @@ export const withdrawApplication = async (req, res) => {
 export const closeGig = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
   const { user } = req;
   const { gigId } = req.params;
   const { reason } = req.cleanedBody || {};
-
+  console.log(gigId);
   if (!mongoose.Types.ObjectId.isValid(gigId)) {
     await session.abortTransaction();
     session.endSession();

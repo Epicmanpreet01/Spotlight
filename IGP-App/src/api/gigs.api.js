@@ -43,3 +43,9 @@ export const updateGig = async (id, formData) => {
   });
   return res.data;
 };
+
+export const closeGig = async (id) => {
+  console.log(id);
+  const res = await api.put(`/gigs/close/${id}`);
+  return res.data;
+};
