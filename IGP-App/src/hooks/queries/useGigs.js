@@ -18,6 +18,8 @@ export const useGigsQuery = (filters = {}) => {
       const res = await fetchGigs(filters);
       return res;
     },
+
+    refetchOnWindowFocus: true,
     retry: false,
   });
 };
@@ -61,6 +63,11 @@ export const useMyGigsQuery = () => {
       const res = await fetchMyGigs();
       return res.data;
     },
+
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    retry: false,
   });
 };
 
@@ -74,5 +81,11 @@ export const useAppliedGigsQuery = () => {
       const res = await fetchAppliedGigs();
       return res.data;
     },
+
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+
+    retry: false,
   });
 };

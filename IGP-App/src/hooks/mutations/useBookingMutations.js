@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
+import { useRouter } from "expo-router";
 
 import {
   createBooking,
@@ -11,7 +12,7 @@ import {
 /* ===================== CREATE ===================== */
 export const useCreateBookingMutation = () => {
   const queryClient = useQueryClient();
-
+  const router = useRouter();
   return useMutation({
     mutationFn: createBooking,
     onSuccess: () => {
@@ -20,8 +21,9 @@ export const useCreateBookingMutation = () => {
         text1: "Booking request sent",
         text2: "Waiting for performer to accept",
       });
-
       queryClient.invalidateQueries(["myBookings"]);
+
+      router.replace("/(tabs)/profile");
     },
     onError: (error) => {
       Toast.show({

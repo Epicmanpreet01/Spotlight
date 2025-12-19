@@ -55,13 +55,13 @@ export default function PerformerProfileView() {
 
   const { mutate: createBooking } = useCreateBookingMutation();
 
-  const perf = data.data;
+  const perf = data?.data;
 
   /* ===================== GALLERY ===================== */
   const gallery =
-    perf.galleryImages?.length > 0
-      ? perf.galleryImages
-      : [perf.user?.profileImage];
+    perf?.galleryImages?.length > 0
+      ? perf?.galleryImages
+      : [perf?.user?.profileImage];
 
   /* 🔹 ADDED: VIDEO THUMBNAILS (SAFE, NON-CONDITIONAL) */
   useEffect(() => {

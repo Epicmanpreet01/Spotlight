@@ -54,7 +54,6 @@ export default function BookerEventPreview() {
       {
         onSettled: () => {
           setHiringPerformerId(null);
-          router.replace("/(tabs)/profile");
         },
       }
     );
