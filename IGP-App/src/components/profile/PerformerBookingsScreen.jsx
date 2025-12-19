@@ -25,7 +25,7 @@ export default function PerformerBookingsScreen({
   const { current, past } = useMemo(() => {
     return {
       current: bookings.filter((b) =>
-        ["pending", "confirmed"].includes(b.status)
+        ["pending", "confirmed", "accepted"].includes(b.status)
       ),
       past: bookings.filter((b) =>
         ["completed", "cancelled", "declined"].includes(b.status)

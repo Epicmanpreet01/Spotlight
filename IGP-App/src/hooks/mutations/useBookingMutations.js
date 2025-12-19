@@ -8,6 +8,7 @@ import {
   confirmBooking,
   completeBooking,
   cancelBooking,
+  declineBooking,
 } from "../../api/booking.api";
 
 /* ===================== CREATE ===================== */
@@ -60,7 +61,7 @@ export const useAcceptBookingMutation = (id) => {
     onError: (error) => {
       Toast.show({
         type: "error",
-        text1: "Failed to create booking",
+        text1: "Failed to accept booking",
         text2: error?.response?.data?.error || "Please try again",
       });
     },
@@ -86,7 +87,7 @@ export const useConfirmBookingMutation = (id) => {
     onError: (error) => {
       Toast.show({
         type: "error",
-        text1: "Failed to create booking",
+        text1: "Failed to confirm booking",
         text2: error?.response?.data?.error || "Please try again",
       });
     },
@@ -112,7 +113,7 @@ export const useCompleteBookingMutation = () => {
     onError: (error) => {
       Toast.show({
         type: "error",
-        text1: "Failed to create booking",
+        text1: "Failed to complete booking",
         text2: error?.response?.data?.error || "Please try again",
       });
     },
@@ -137,7 +138,32 @@ export const useCancelBookingMutation = (id) => {
     onError: (error) => {
       Toast.show({
         type: "error",
-        text1: "Failed to create booking",
+        text1: "Failed to cancel booking",
+        text2: error?.response?.data?.error || "Please try again",
+      });
+    },
+  });
+};
+
+export const useDeclineBookingMutation = (id) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => declineBooking(id),
+    onSuccess: () => {
+      Toast.show({
+        type: "success",
+        text1: "Booking declined",
+      });
+
+      queryClient.invalidateQueries(["myBookings"]);
+      queryClient.invalidateQueries(["notifications"]);
+      queryClient.invalidateQueries(["booking", id]);
+    },
+    onError: (error) => {
+      Toast.show({
+        type: "error",
+        text1: "Failed to decline booking",
         text2: error?.response?.data?.error || "Please try again",
       });
     },

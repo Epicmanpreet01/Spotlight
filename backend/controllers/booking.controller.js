@@ -9,9 +9,22 @@ import { ensureChatForBooking } from "../utils/chat.utils.js";
 import { sendNotification } from "../services/notification.service.js";
 import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
 import Gig from "../models/gigs.model.js";
+import { encryptOtp, decryptOtp } from "../utils/otpCrypto.utils.js";
 
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+}
+
+function getBookerIdString(booking) {
+  if (!booking.booker) return null;
+
+  // populated
+  if (typeof booking.booker === "object" && booking.booker._id) {
+    return booking.booker._id.toString();
+  }
+
+  // ObjectId
+  return booking.booker.toString();
 }
 
 // get booking by id (booker or performer)
@@ -54,16 +67,33 @@ export const getBookingById = async (req, res) => {
         error: "You are not authorized to view this booking",
       });
     }
+    // 🔐 Completion OTP handling
+    let decryptedOtp = null;
 
-    // 🔐 Hide sensitive fields
+    if (isBooker && booking.status === "confirmed" && booking.completionCode) {
+      try {
+        const bookerId = booking.booker?._id
+          ? booking.booker._id.toString()
+          : booking.booker.toString();
+
+        decryptedOtp = decryptOtp(booking.completionCode, bookerId);
+      } catch (err) {
+        console.error("OTP decrypt failed:", err);
+      }
+    }
+
+    // 🔐 Hide sensitive fields for performer
     if (!isBooker) {
-      delete booking.completionCode;
+      booking.completionCode = null;
       delete booking.paymentStatus;
     }
 
     return res.status(200).json({
       success: true,
-      data: booking,
+      data: {
+        ...booking,
+        completionCode: decryptedOtp,
+      },
     });
   } catch (error) {
     console.error("getBookingById error:", error);
@@ -151,7 +181,7 @@ export const createBooking = async (req, res) => {
 
     const conflict = await Booking.findOne({
       performer: performerId,
-      status: { $in: ["pending", "accepted", "confirmed"] },
+      status: { $nin: ["cancelled", "declined", "completed"] },
       "eventDate.start": { $lt: end },
       "eventDate.end": { $gt: start },
     }).session(session);
@@ -211,8 +241,7 @@ export const createBooking = async (req, res) => {
 
     await sendNotification(req.io, {
       userId: performerId,
-      type:
-        bookingStatus === "accepted" ? "booking_accepted" : "booking_request",
+      type: bookingStatus === "accepted" ? "booking_update" : "booking_request",
       title:
         bookingStatus === "accepted"
           ? "Booking Confirmed"
@@ -367,9 +396,11 @@ export const confirmBooking = async (req, res) => {
         .json({ success: false, error: "Not accepted yet" });
 
     const otp = generateOtp();
-    const hashedOtp = await bcrypt.hash(otp, 10);
 
-    booking.completionCode = hashedOtp;
+    const bookerId = getBookerIdString(booking);
+    const encryptedOtp = encryptOtp(otp, bookerId);
+
+    booking.completionCode = encryptedOtp;
     booking.status = "confirmed";
     booking.paymentStatus = "escrow_held";
 
@@ -442,10 +473,13 @@ export const completeBooking = async (req, res) => {
         error: "No completion code set for this booking",
       });
     }
+    if (!booking.completionCode || booking.completionCode.length < 40) {
+      throw new Error("Invalid encrypted OTP format");
+    }
+    const bookerId = getBookerIdString(booking);
+    const realOtp = decryptOtp(booking.completionCode, bookerId);
 
-    const isValid = await bcrypt.compare(String(code), booking.completionCode);
-
-    if (!isValid) {
+    if (String(code) !== realOtp) {
       return res.status(400).json({
         success: false,
         error: "Incorrect completion code",
@@ -549,7 +583,6 @@ export const getMyBookings = async (req, res) => {
         path: "gig",
         select: "title previewImage budget location eventDate status",
       })
-      .select("+completionCode")
       .sort({ createdAt: -1 })
       .lean();
 

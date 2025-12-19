@@ -7,13 +7,21 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../../src/api/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../../src/context/ThemeContext";
+
+/* 🔗 Hooks */
+import { useBookingById } from "../../../src/hooks/queries/useBookings";
+import {
+  useAcceptBookingMutation,
+  useDeclineBookingMutation,
+  useCompleteBookingMutation,
+  useCancelBookingMutation,
+} from "../../../src/hooks/mutations/useBookingMutations";
 
 export default function PerformerBookingDetails() {
   const { id } = useLocalSearchParams();
@@ -22,26 +30,38 @@ export default function PerformerBookingDetails() {
 
   const [otp, setOtp] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["booking-details-performer", id],
-    queryFn: async () => (await api.get(`/booking/details/${id}`)).data,
-  });
+  /* ===================== DATA ===================== */
+  const { data, isLoading } = useBookingById(id);
+  const booking = data?.data;
+
+  /* ===================== MUTATIONS ===================== */
+  const { mutate: acceptBooking, isPending: accepting } =
+    useAcceptBookingMutation(id);
+
+  const { mutate: declineBooking, isPending: declining } =
+    useDeclineBookingMutation(id);
+
+  const { mutate: completeBooking, isPending: completing } =
+    useCompleteBookingMutation();
+
+  const { mutate: cancelBooking, isPending: cancelling } =
+    useCancelBookingMutation(id);
 
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <Text>Loading booking...</Text>
+        <Text style={{ color: theme.colors.text }}>Loading booking...</Text>
       </View>
     );
   }
 
-  const booking = data?.data;
-  if (!booking)
+  if (!booking) {
     return (
       <View style={styles.center}>
-        <Text>Booking not found</Text>
+        <Text style={{ color: theme.colors.text }}>Booking not found</Text>
       </View>
     );
+  }
 
   const isPast = ["completed", "cancelled", "declined"].includes(
     booking.status
@@ -53,6 +73,50 @@ export default function PerformerBookingDetails() {
       : booking.status === "pending"
       ? "#FF9800"
       : "#D32F2F";
+
+  const handleSubmitOtp = () => {
+    if (otp.length !== 6) return;
+
+    completeBooking(
+      { id: booking._id, body: { code: otp } },
+      {
+        onSuccess: () => {
+          Alert.alert("Success", "Booking marked as completed");
+          setOtp("");
+        },
+      }
+    );
+  };
+
+  const handleDecline = () => {
+    Alert.alert(
+      "Decline Booking",
+      "Are you sure you want to decline this booking?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: () => declineBooking(),
+        },
+      ]
+    );
+  };
+
+  const handleCancel = () => {
+    Alert.alert(
+      "Cancel Booking",
+      "Are you sure you want to cancel this booking?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: () => cancelBooking(),
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -77,7 +141,7 @@ export default function PerformerBookingDetails() {
           ]}
         >
           <Text style={[styles.eventTitle, { color: theme.colors.text }]}>
-            {booking.event.title}
+            {booking.gig?.title}
           </Text>
 
           <View style={styles.metaRow}>
@@ -89,7 +153,7 @@ export default function PerformerBookingDetails() {
             <Text
               style={[styles.metaText, { color: theme.colors.textSecondary }]}
             >
-              {booking.event.location}
+              {booking.gig?.location?.address}
             </Text>
           </View>
 
@@ -102,7 +166,8 @@ export default function PerformerBookingDetails() {
             <Text
               style={[styles.metaText, { color: theme.colors.textSecondary }]}
             >
-              {booking.event.dateTime}
+              {new Date(booking.eventDate.start).toDateString()} –{" "}
+              {new Date(booking.eventDate.end).toDateString()}
             </Text>
           </View>
         </View>
@@ -115,24 +180,14 @@ export default function PerformerBookingDetails() {
           <Text
             style={[styles.bodyText, { color: theme.colors.textSecondary }]}
           >
-            {booking.event.description}
+            {booking.gig?.description}
           </Text>
         </View>
 
-        {/* ROLE */}
-        <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Performer Role
-          </Text>
-          <Text
-            style={[styles.bodyText, { color: theme.colors.textSecondary }]}
-          >
-            {booking.role}
-          </Text>
-        </View>
+        {/* ====================== PENDING ACTIONS (NEW) ====================== */}
 
-        {/* ====================== OTP SECTION FOR CURRENT BOOKINGS ====================== */}
-        {!isPast && (
+        {/* ====================== OTP SECTION ====================== */}
+        {!isPast && booking.status === "confirmed" && (
           <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Complete Event (OTP Required)
@@ -154,19 +209,8 @@ export default function PerformerBookingDetails() {
               ]}
             />
 
-            <Text
-              style={{
-                color: theme.colors.textSecondary,
-                marginTop: 8,
-                fontSize: 12,
-              }}
-            >
-              ❗ Enter this OTP after the event is completed to mark it
-              finished.
-            </Text>
-
             <TouchableOpacity
-              disabled={otp.length !== 6}
+              disabled={otp.length !== 6 || completing}
               style={[
                 styles.otpBtn,
                 {
@@ -176,23 +220,12 @@ export default function PerformerBookingDetails() {
                       : theme.colors.border,
                 },
               ]}
+              onPress={handleSubmitOtp}
             >
-              <Text style={styles.otpBtnText}>Submit OTP</Text>
+              <Text style={styles.otpBtnText}>
+                {completing ? "Submitting..." : "Submit OTP"}
+              </Text>
             </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ====================== PAST BOOKINGS: NO Assigned Performer ====================== */}
-        {isPast && (
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Event Completed
-            </Text>
-            <Text
-              style={[styles.bodyText, { color: theme.colors.textSecondary }]}
-            >
-              This booking has been completed successfully.
-            </Text>
           </View>
         )}
 
@@ -208,20 +241,63 @@ export default function PerformerBookingDetails() {
           </View>
         </View>
 
-        {/* PRICE – No payment button for Performer */}
+        {/* PRICE */}
         <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Price
           </Text>
           <Text style={[styles.price, { color: theme.colors.primary }]}>
-            ₹{booking.price}
+            ₹{booking.totalPrice}
           </Text>
         </View>
       </ScrollView>
+      {(booking.status === "pending" || booking.status === "accepted") && (
+        <View style={styles.bottomActions}>
+          {booking.status === "pending" && (
+            <>
+              <TouchableOpacity
+                style={[styles.bottomBtn, { backgroundColor: "#D32F2F" }]}
+                onPress={handleDecline}
+                disabled={declining}
+              >
+                <Text style={styles.actionText}>
+                  {declining ? "Declining..." : "Decline"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.bottomBtn,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+                onPress={() => acceptBooking()}
+                disabled={accepting}
+              >
+                <Text style={styles.actionText}>
+                  {accepting ? "Accepting..." : "Accept"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {booking.status === "accepted" && (
+            <TouchableOpacity
+              style={[styles.bottomBtn, { backgroundColor: "#D32F2F" }]}
+              onPress={handleCancel}
+              disabled={cancelling}
+            >
+              <Text style={styles.actionText}>
+                {cancelling ? "Cancelling..." : "Cancel Booking"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
@@ -267,6 +343,15 @@ const styles = StyleSheet.create({
 
   price: { fontSize: 22, fontWeight: "800" },
 
+  actionBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  actionText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+
   otpInput: {
     borderWidth: 1,
     borderRadius: 10,
@@ -286,5 +371,21 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
+  },
+
+  bottomActions: {
+    position: "absolute",
+    bottom: 20,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  bottomBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
   },
 });

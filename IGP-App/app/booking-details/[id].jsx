@@ -85,6 +85,9 @@ export default function BookingDetails() {
     );
   };
 
+  const completionOtp =
+    booking.status === "confirmed" && isBooker ? booking.completionCode : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* HEADER */}
@@ -155,34 +158,46 @@ export default function BookingDetails() {
             {booking.performer?.name}
           </Text>
         </View>
-
-        {/* CONFIRM BOOKING */}
-        {booking.status === "accepted" && isBooker && (
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              { backgroundColor: theme.colors.primary },
-            ]}
-            onPress={() => confirmBooking()}
-            disabled={confirming}
-          >
-            <Text style={styles.actionText}>
-              {confirming ? "Confirming..." : "Confirm Booking"}
+        {/* EVENT COMPLETION OTP (BOOKER ONLY) */}
+        {completionOtp && (
+          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Event Completion Code
             </Text>
-          </TouchableOpacity>
-        )}
 
-        {/* ✅ CANCEL BOOKING (NOW WORKS) */}
-        {canCancel && (
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#D32F2F" }]}
-            onPress={handleCancel}
-            disabled={cancelling}
-          >
-            <Text style={styles.actionText}>
-              {cancelling ? "Cancelling..." : "Cancel Booking"}
+            <View
+              style={{
+                marginTop: 10,
+                paddingVertical: 14,
+                borderRadius: 12,
+                backgroundColor: "#E8F5E9",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 26,
+                  fontWeight: "800",
+                  letterSpacing: 4,
+                  color: "#2E7D32",
+                }}
+              >
+                {completionOtp}
+              </Text>
+            </View>
+
+            <Text
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: theme.colors.textSecondary,
+                textAlign: "center",
+              }}
+            >
+              ❗ Share this code with the performer after the event to complete
+              booking.
             </Text>
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* STATUS */}
@@ -207,6 +222,36 @@ export default function BookingDetails() {
           </Text>
         </View>
       </ScrollView>
+      {(booking.status === "accepted" || canCancel) && (
+        <View style={styles.bottomActions}>
+          {booking.status === "accepted" && isBooker && (
+            <TouchableOpacity
+              style={[
+                styles.bottomBtn,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() => confirmBooking()}
+              disabled={confirming}
+            >
+              <Text style={styles.actionText}>
+                {confirming ? "Confirming..." : "Confirm"}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {canCancel && (
+            <TouchableOpacity
+              style={[styles.bottomBtn, { backgroundColor: "#D32F2F" }]}
+              onPress={handleCancel}
+              disabled={cancelling}
+            >
+              <Text style={styles.actionText}>
+                {cancelling ? "Cancelling..." : "Cancel"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -255,4 +300,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   actionText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  bottomActions: {
+    position: "absolute",
+    bottom: 20,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  bottomBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
 });
