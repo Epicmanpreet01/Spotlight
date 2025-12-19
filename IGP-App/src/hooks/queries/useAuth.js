@@ -9,7 +9,7 @@ export const useCurrentUser = () =>
       return res.data;
     },
     retry: false,
-    staleTime: 0,
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
+    refetchOnMount: false,
   });

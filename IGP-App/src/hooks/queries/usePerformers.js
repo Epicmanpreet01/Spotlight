@@ -9,35 +9,30 @@ export const usePerformersQuery = (filters = {}) => {
   return useQuery({
     queryKey: ["performers", filters],
     enabled: isAuthed,
-    queryFn: async () => {
-      const res = await getPerformers(filters);
-      return res;
-    },
+    queryFn: () => getPerformers(filters),
+    staleTime: 1000 * 60, // 1 min
     refetchOnWindowFocus: true,
-    staleTime: 1000 * 30,
     retry: false,
   });
 };
+
 export const usePerformerByIdQuery = (id) =>
   useQuery({
     queryKey: ["performer", id],
     enabled: !!id,
     queryFn: async () => {
       try {
-        const res = await getPerformerById(id);
-        return res;
+        return await getPerformerById(id);
       } catch (error) {
-        console.error(`Error fetching performer (${id}):`, error);
-
         Toast.show({
           type: "error",
           text1: "Failed to load performer",
           text2: error?.message || "Please try again.",
         });
-
-        return null;
+        throw error;
       }
     },
-
+    staleTime: 1000 * 60 * 5, // 5 min
+    refetchOnWindowFocus: false,
     retry: false,
   });

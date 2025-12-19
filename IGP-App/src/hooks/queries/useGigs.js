@@ -14,12 +14,10 @@ export const useGigsQuery = (filters = {}) => {
   return useQuery({
     queryKey: ["gigs", filters],
     enabled: isAuthed,
-    queryFn: async () => {
-      const res = await fetchGigs(filters);
-      return res;
-    },
+    queryFn: () => fetchGigs(filters),
+    staleTime: 1000 * 15, // 15s
     refetchOnWindowFocus: true,
-    staleTime: 1000 * 30,
+    refetchOnMount: true,
     retry: false,
   });
 };
@@ -28,28 +26,21 @@ export const useGigByIdQuery = (id) =>
   useQuery({
     queryKey: ["gig", id],
     enabled: !!id,
-
     queryFn: async () => {
       try {
-        const res = await fetchGigById(id);
-        return res;
+        return await fetchGigById(id);
       } catch (error) {
-        console.error("Failed to fetch gig:", error);
-
         Toast.show({
           type: "error",
           text1: "Failed to load gig",
           text2: error?.message || "Please try again.",
         });
-
         throw error;
       }
     },
-
+    staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    staleTime: 0,
-
     retry: false,
   });
 
@@ -63,10 +54,9 @@ export const useMyGigsQuery = () => {
       const res = await fetchMyGigs();
       return res.data;
     },
-
+    staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    staleTime: 0,
     retry: false,
   });
 };
@@ -81,11 +71,9 @@ export const useAppliedGigsQuery = () => {
       const res = await fetchAppliedGigs();
       return res.data;
     },
-
+    staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    staleTime: 0,
-
     retry: false,
   });
 };

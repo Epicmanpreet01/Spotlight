@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { loginUser, signupUser, logoutUser } from "../../api/auth.api.js";
 import Toast from "react-native-toast-message";
 import { setAuthToken, getBackendErrorMessage } from "../../api/api.js";
@@ -41,6 +41,7 @@ export function useSignupMutation() {
 
 export function useSigninMutation() {
   const { setRoleTheme } = useTheme();
+  const qc = useQueryClient();
 
   return useMutation({
     mutationFn: loginUser,
@@ -48,11 +49,9 @@ export function useSigninMutation() {
     onSuccess: async (data) => {
       const token = data.token;
       const role = data.data?.role;
-
       await setAuthToken(token);
-
       setRoleTheme(role);
-
+      qc.clear();
       router.replace("/(tabs)/home");
     },
   });
@@ -61,7 +60,7 @@ export function useSigninMutation() {
 export const useLogoutMutation = () => {
   const router = useRouter();
   const { resetTheme } = useTheme();
-
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: logoutUser,
 
@@ -69,7 +68,7 @@ export const useLogoutMutation = () => {
       await setAuthToken(null);
 
       resetTheme();
-
+      qc.clear();
       router.replace("/(auth)/sign-in");
 
       Toast.show({

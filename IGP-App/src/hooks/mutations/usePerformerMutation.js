@@ -17,7 +17,8 @@ export const useUpdatePerformerProfileMutation = () => {
 
     onSuccess: () => {
       qc.invalidateQueries(["currentUser"]);
-      qc.invalidateQueries(["performerProfile"]);
+      qc.invalidateQueries(["appliedGigs"]);
+      qc.invalidateQueries(["myBookings"]);
     },
 
     onError: (error) => {
@@ -40,7 +41,8 @@ export const useAddGalleryImagesMutation = () => {
 
     onSuccess: () => {
       qc.invalidateQueries(["currentUser"]);
-      qc.invalidateQueries(["performerProfile"]);
+      qc.invalidateQueries(["appliedGigs"]);
+      qc.invalidateQueries(["myBookings"]);
     },
 
     onError: (error) => {
@@ -63,7 +65,8 @@ export const useRemoveGalleryImageMutation = () => {
 
     onSuccess: () => {
       qc.invalidateQueries(["currentUser"]);
-      qc.invalidateQueries(["performerProfile"]);
+      qc.invalidateQueries(["appliedGigs"]);
+      qc.invalidateQueries(["myBookings"]);
     },
 
     onError: (error) => {

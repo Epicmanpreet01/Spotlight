@@ -13,7 +13,7 @@ export const useNotifications = () => {
       return res?.data?.data || [];
     },
     refetchInterval: isAuthed ? 5000 : false,
-    staleTime: 1000 * 30,
+    staleTime: 5000,
     retry: false,
   });
 };

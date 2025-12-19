@@ -22,6 +22,8 @@ export const useCreateBookingMutation = () => {
         text2: "Waiting for performer to accept",
       });
       queryClient.invalidateQueries(["myBookings"]);
+      queryClient.invalidateQueries(["myGigs"]);
+      queryClient.invalidateQueries(["notifications"]);
 
       router.replace("/(tabs)/profile");
     },
@@ -48,6 +50,10 @@ export const useAcceptBookingMutation = () => {
       });
 
       queryClient.invalidateQueries(["myBookings"]);
+      queryClient.invalidateQueries(["gigs"]);
+      queryClient.invalidateQueries(["appliedGigs"]);
+      queryClient.invalidateQueries(["gig"]);
+      queryClient.invalidateQueries(["notifications"]);
     },
   });
 };
@@ -65,6 +71,7 @@ export const useConfirmBookingMutation = () => {
       });
 
       queryClient.invalidateQueries(["myBookings"]);
+      queryClient.invalidateQueries(["notifications"]);
     },
   });
 };
@@ -82,6 +89,7 @@ export const useCompleteBookingMutation = () => {
       });
 
       queryClient.invalidateQueries(["myBookings"]);
+      queryClient.invalidateQueries(["notifications"]);
     },
   });
 };
