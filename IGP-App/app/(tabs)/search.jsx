@@ -40,11 +40,25 @@ export default function SearchScreen() {
   const role = me?.data?.role;
 
   /* ===================== DATA ===================== */
-  const { data: gigsResp } = useGigsQuery({}, role === "performer");
-  const gigs = gigsResp?.data || [];
+  const {
+    data: gigsResp,
+    fetchNextPage: fetchMoreGigs,
+    hasNextPage: hasMoreGigs,
+  } = useGigsQuery({}, role === "performer");
 
-  const { data: performersResp } = usePerformersQuery({}, role === "booker");
-  const performers = performersResp?.data || [];
+  const gigs = useMemo(() => {
+    return gigsResp?.pages?.flatMap((p) => p.data) || [];
+  }, [gigsResp]);
+
+  const {
+    data: performersResp,
+    fetchNextPage: fetchMorePerformers,
+    hasNextPage: hasMorePerformers,
+  } = usePerformersQuery({}, role === "booker");
+
+  const performers = useMemo(() => {
+    return performersResp?.pages?.flatMap((p) => p.data) || [];
+  }, [performersResp]);
 
   /* ===================== DATE HELPERS ===================== */
   const now = new Date();
@@ -163,7 +177,12 @@ export default function SearchScreen() {
             keyExtractor={(i) => i._id}
             renderItem={({ item }) => <BookerPerformerCard item={item} />}
             contentContainerStyle={{ padding: 20 }}
-            showsVerticalScrollIndicator={false}
+            onEndReached={() => {
+              if (hasMorePerformers) {
+                fetchMorePerformers();
+              }
+            }}
+            onEndReachedThreshold={0.5}
           />
         )}
 
@@ -219,6 +238,12 @@ export default function SearchScreen() {
           renderItem={({ item }) => <GigCard item={item} />}
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (hasMoreGigs) {
+              fetchMoreGigs();
+            }
+          }}
+          onEndReachedThreshold={0.5}
         />
       )}
 

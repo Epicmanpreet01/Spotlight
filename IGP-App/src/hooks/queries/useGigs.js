@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import {
   fetchGigs,
   fetchGigById,
@@ -8,16 +8,25 @@ import {
 import Toast from "react-native-toast-message";
 import { useAuthGate } from "../useAuthGate";
 
-export const useGigsQuery = (filters = {}) => {
+export const useGigsQuery = (filters = {}, enabled = true) => {
   const { isAuthed } = useAuthGate();
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["gigs", filters],
-    enabled: isAuthed,
-    queryFn: () => fetchGigs(filters),
-    staleTime: 1000 * 15, // 15s
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    enabled: isAuthed && enabled,
+    queryFn: ({ pageParam = 1 }) =>
+      fetchGigs({ ...filters, page: pageParam, limit: 10 }),
+
+    getNextPageParam: (lastPage) => {
+      const { pagination } = lastPage;
+      if (!pagination) return undefined;
+
+      return pagination.page < pagination.pages
+        ? pagination.page + 1
+        : undefined;
+    },
+
+    staleTime: 1000 * 15,
     retry: false,
   });
 };

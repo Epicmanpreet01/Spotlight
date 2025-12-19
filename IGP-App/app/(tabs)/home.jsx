@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../src/context/ThemeContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ===================== HOOKS ===================== */
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
@@ -38,6 +39,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { theme } = useTheme();
 
+  const queryClient = useQueryClient();
+
   const [isLocationModalOpen, setLocationModalOpen] = useState(false);
 
   /* ===================== USER ===================== */
@@ -59,14 +62,44 @@ export default function HomeScreen() {
 
   const performerCategory = role === "performer" ? profile?.category : null;
 
-  const { data: recommendedGigsResp } = useGigsQuery(
-    { requiredCategory: performerCategory },
-    role === "performer" && !!performerCategory
-  );
+  const allGigs = gigsResp?.pages?.[0]?.data ?? [];
+  const MAX_NEARBY_GIGS = 7;
+  const MAX_RECOMMENDED_GIGS = 7;
 
-  const gigs = gigsResp?.data ?? [];
-  const recommendedGigs = recommendedGigsResp?.data ?? [];
-  const nearbyGigs = gigs.slice(0, 7);
+  /* ===================== NEARBY ===================== */
+  const nearbyGigs = allGigs
+    .filter((g) => g?.eventDate?.start)
+    .sort((a, b) => new Date(a.eventDate.start) - new Date(b.eventDate.start))
+    .slice(0, MAX_NEARBY_GIGS);
+
+  const usedGigIds = new Set(nearbyGigs.map((g) => g._id));
+
+  /* ===================== RECOMMENDED (STRICT) ===================== */
+  let recommendedGigs = allGigs.filter((g) => {
+    if (usedGigIds.has(g._id)) return false;
+
+    if (performerCategory) {
+      return (
+        g.categoryRequired?.toLowerCase() === performerCategory.toLowerCase()
+      );
+    }
+
+    return false;
+  });
+
+  /* ===================== BACKFILL (RELAXED) ===================== */
+  if (recommendedGigs.length < MAX_RECOMMENDED_GIGS) {
+    const backfill = allGigs.filter(
+      (g) =>
+        !usedGigIds.has(g._id) && !recommendedGigs.some((r) => r._id === g._id)
+    );
+
+    recommendedGigs = [...recommendedGigs, ...backfill];
+  }
+
+  recommendedGigs = recommendedGigs
+    .sort((a, b) => (b.budget || 0) - (a.budget || 0))
+    .slice(0, MAX_RECOMMENDED_GIGS);
 
   /* ===================== BOOKER PERFORMERS ===================== */
   const {
@@ -75,9 +108,36 @@ export default function HomeScreen() {
     refetch: refetchPerformers,
   } = usePerformersQuery({}, role === "booker");
 
-  const performers = performersResp?.data ?? [];
-  const nearbyPerformers = performers.slice(0, 4);
-  const recommendedPerformers = performers.slice(4);
+  const performers = performersResp?.pages?.[0]?.data ?? [];
+  const MAX_NEARBY = 4;
+  const MAX_RECOMMENDED = 6;
+
+  /* ===================== NEARBY ===================== */
+  const nearbyPerformers = performers
+    .filter((p) => p?.user)
+    .slice(0, MAX_NEARBY);
+
+  const usedPerformerIds = new Set(nearbyPerformers.map((p) => p._id));
+
+  /* ===================== RECOMMENDED (STRICT) ===================== */
+  let recommendedPerformers = performers.filter(
+    (p) => !usedPerformerIds.has(p._id) && (p.averageRating ?? 0) >= 4
+  );
+
+  /* ===================== BACKFILL (RELAXED) ===================== */
+  if (recommendedPerformers.length < MAX_RECOMMENDED) {
+    const backfill = performers.filter(
+      (p) =>
+        !usedPerformerIds.has(p._id) &&
+        !recommendedPerformers.some((r) => r._id === p._id)
+    );
+
+    recommendedPerformers = [...recommendedPerformers, ...backfill];
+  }
+
+  recommendedPerformers = recommendedPerformers
+    .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+    .slice(0, MAX_RECOMMENDED);
 
   /* ===================== LOCATION ===================== */
   const { mutate: updateLocation } = useUpdateLocationMutation();
@@ -123,7 +183,12 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Nearby Gigs
             </Text>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/search")}>
+            <TouchableOpacity
+              onPress={() => {
+                queryClient.prefetchInfiniteQuery(["gigs"]);
+                router.push("/(tabs)/search");
+              }}
+            >
               <Text style={[styles.seeAll, { color: theme.colors.primary }]}>
                 See All
               </Text>
@@ -193,16 +258,22 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        <BookerNearbyList performers={nearbyPerformers} />
+        {nearbyPerformers?.length === 0 ? (
+          <HomeEmptyState message="No nearby performers available right now." />
+        ) : (
+          <BookerNearbyList performers={nearbyPerformers} />
+        )}
 
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Recommended
           </Text>
         </View>
-
-        <BookerRecommendedList performers={recommendedPerformers} />
+        {recommendedPerformers?.length === 0 ? (
+          <HomeEmptyState message="No reccomended performers available right now." />
+        ) : (
+          <BookerRecommendedList performers={recommendedPerformers} />
+        )}
       </ScrollView>
 
       <TouchableOpacity

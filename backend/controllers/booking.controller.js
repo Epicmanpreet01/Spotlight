@@ -459,12 +459,21 @@ export const completeBooking = async (req, res) => {
 
     if (booking.status !== "confirmed")
       return res.status(400).json({ success: false, error: "Not confirmed" });
-    console.log("DEBUG OTP:", { code, stored: booking.completionCode });
+
     if (!code) {
       return res.status(400).json({
         success: false,
         error: "Completion code is required",
       });
+    }
+    const current = new Date();
+    if (current < booking.eventDate.start) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          error: "Can not complete event before event start",
+        });
     }
 
     if (!booking.completionCode) {
