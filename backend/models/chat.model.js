@@ -31,6 +31,11 @@ const ChatSchema = new Schema(
         count: { type: Number, default: 0 },
       },
     ],
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );

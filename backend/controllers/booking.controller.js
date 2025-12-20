@@ -497,7 +497,10 @@ export const completeBooking = async (req, res) => {
     booking.paymentStatus = "released";
     await booking.save();
 
-    await Chat.deleteOne({ booking: booking._id });
+    await Chat.updateOne(
+      { booking: booking._id },
+      { $set: { isActive: false } }
+    );
 
     await sendNotification(req.io, {
       userId: booking.booker,

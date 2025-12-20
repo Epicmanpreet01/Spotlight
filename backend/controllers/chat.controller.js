@@ -10,6 +10,7 @@ export const getMyChats = async (req, res) => {
   try {
     const chats = await Chat.find({
       members: user._id,
+      isActive: true,
     })
       .populate({
         path: "members",

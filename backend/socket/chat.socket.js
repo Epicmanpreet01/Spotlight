@@ -26,7 +26,7 @@ export default function initChatSocket(io) {
       try {
         const chat = await Chat.findById(chatId).populate("booking");
 
-        if (!chat) {
+        if (!chat || !chat.isActive) {
           return ack?.({ error: "Chat not found" });
         }
 
@@ -73,6 +73,10 @@ export default function initChatSocket(io) {
           !chat.members.some((m) => m.toString() === userId.toString())
         ) {
           return ack?.({ error: "Unauthorized" });
+        }
+
+        if (!chat.isActive) {
+          return ack?.({ error: "Chat is no longer active" });
         }
 
         if (chat.booking.status !== "confirmed") {
