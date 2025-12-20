@@ -164,7 +164,10 @@ export default function ChatScreen() {
           )}
         />
 
-        <ChatInputBar onSend={handleSend} />
+        <ChatInputBar
+          onSend={handleSend}
+          disabled={!connected || !isJoinedRef.current}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

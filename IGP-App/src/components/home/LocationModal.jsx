@@ -51,7 +51,6 @@ export default function BookerLocationModal({
     const timeout = setTimeout(async () => {
       const results = await searchLocation(addressQuery);
       setSuggestion(results?.[0] || null);
-      setIsTyping(false); // stop further auto-searches
     }, 500);
 
     return () => clearTimeout(timeout);
@@ -146,7 +145,7 @@ export default function BookerLocationModal({
                 </View>
 
                 {/* 🔽 SINGLE RESULT FLOATING DROPDOWN */}
-                {suggestion && !isTyping && (
+                {suggestion && (
                   <TouchableOpacity
                     style={[
                       styles.dropdown,

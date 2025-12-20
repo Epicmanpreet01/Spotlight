@@ -10,6 +10,7 @@ import { sendNotification } from "../services/notification.service.js";
 import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
 import Gig from "../models/gigs.model.js";
 import { encryptOtp, decryptOtp } from "../utils/otpCrypto.utils.js";
+import Chat from "../models/chat.model.js";
 
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
@@ -495,6 +496,8 @@ export const completeBooking = async (req, res) => {
     booking.status = "completed";
     booking.paymentStatus = "released";
     await booking.save();
+
+    await Chat.deleteOne({ booking: booking._id });
 
     await sendNotification(req.io, {
       userId: booking.booker,
