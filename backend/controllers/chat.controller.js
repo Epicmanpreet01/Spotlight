@@ -12,6 +12,10 @@ export const getMyChats = async (req, res) => {
       members: user._id,
     })
       .populate({
+        path: "members",
+        select: "name profileImage",
+      })
+      .populate({
         path: "booking",
         select: "status eventDate performer booker",
       })
@@ -22,14 +26,23 @@ export const getMyChats = async (req, res) => {
       })
       .sort({ updatedAt: -1 });
 
-    // Only keep confirmed bookings
-    const filtered = chats.filter((c) => c.booking?.status === "confirmed");
+    // ✅ only confirmed bookings
+    const confirmed = chats.filter((c) => c.booking?.status === "confirmed");
+
+    // ✅ normalize unreadCounts for frontend
+    const normalized = confirmed.map((chat) => ({
+      ...chat.toObject(),
+      unreadCounts: chat.unreadCounts.map((u) => ({
+        user: u.user.toString(),
+        count: u.count,
+      })),
+    }));
 
     return res.status(200).json({
       success: true,
       message: "Fetched chats successfully",
-      count: filtered.length,
-      data: filtered,
+      count: normalized.length,
+      data: normalized,
     });
   } catch (err) {
     console.error("Error fetching chats:", err);

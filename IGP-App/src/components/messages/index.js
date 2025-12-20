@@ -1,5 +1,6 @@
-// src/components/messages/index.js
-export { default as MessagesHeader } from './MessagesHeader';
-export { default as ChatListItem } from './ChatListItem';
-export { default as EmptyMessages } from './EmptyMessages';
+import React from "react";
+import ChatList from "./ChatList";
 
+export default function Messages() {
+  return <ChatList />;
+}

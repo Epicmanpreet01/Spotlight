@@ -6,61 +6,53 @@ import { bumpUnreadCounts } from "../utils/chat.utils.js";
 
 export default function initChatSocket(io) {
   io.use((socket, next) => {
-    // Expect token from client: io("url", { auth: { token } })
     const token = socket.handshake.auth?.token;
-
-    if (!token) {
-      return next(new Error("Unauthorized: Missing token"));
-    }
+    if (!token) return next(new Error("Unauthorized"));
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
       socket.user = { _id: decoded._id, role: decoded.role };
       next();
-    } catch (err) {
-      console.error("Socket auth error:", err);
-      next(new Error("Unauthorized: Invalid token"));
+    } catch {
+      next(new Error("Unauthorized"));
     }
   });
 
   io.on("connection", (socket) => {
     const userId = socket.user._id;
-    // Optional: join a personal room for notifications
     socket.join(`user:${userId}`);
 
-    // Client tells us which chat they are viewing
-    socket.on("join_chat", async ({ chatId }) => {
+    socket.on("join_chat", async ({ chatId }, ack) => {
       try {
-        const chat = await Chat.findById(chatId).populate(
-          "booking",
-          "status booker performer"
-        );
+        const chat = await Chat.findById(chatId).populate("booking");
 
-        if (
-          !chat ||
-          !chat.members.some((m) => m.toString() === userId.toString())
-        ) {
-          return socket.emit("chat_error", {
-            chatId,
-            error: "Not authorized for this chat",
-          });
+        if (!chat) {
+          return ack?.({ error: "Chat not found" });
         }
 
-        if (chat.booking.status !== "confirmed") {
-          return socket.emit("chat_error", {
-            chatId,
-            error: "Chat only available after booking is confirmed",
-          });
+        if (!chat.members.some((m) => m.toString() === userId.toString())) {
+          return ack?.({ error: "Unauthorized chat access" });
+        }
+
+        if (!chat.booking || chat.booking.status !== "confirmed") {
+          return ack?.({ error: "Chat not active" });
         }
 
         socket.join(chatId.toString());
-        socket.emit("joined_chat", { chatId });
+
+        console.log(
+          "✅ JOIN SUCCESS",
+          "chatId:",
+          chatId,
+          "user:",
+          userId,
+          "socket:",
+          socket.id
+        );
+        ack?.({ success: true });
       } catch (err) {
         console.error("join_chat error:", err);
-        socket.emit("chat_error", {
-          chatId,
-          error: "Failed to join chat",
-        });
+        ack?.({ error: "Join failed" });
       }
     });
 
@@ -68,35 +60,23 @@ export default function initChatSocket(io) {
       socket.leave(chatId.toString());
     });
 
-    // Realtime message send
-    socket.on("send_message", async ({ chatId, text }) => {
-      if (!text || !text.trim()) {
-        return socket.emit("chat_error", {
-          chatId,
-          error: "Message text required",
-        });
-      }
-
+    socket.on("send_message", async ({ chatId, text }, ack) => {
       try {
-        const chat = await Chat.findById(chatId)
-          .populate("booking", "status")
-          .exec();
+        if (!text?.trim()) {
+          return ack?.({ error: "Empty message" });
+        }
+
+        const chat = await Chat.findById(chatId).populate("booking", "status");
 
         if (
           !chat ||
           !chat.members.some((m) => m.toString() === userId.toString())
         ) {
-          return socket.emit("chat_error", {
-            chatId,
-            error: "Not authorized for this chat",
-          });
+          return ack?.({ error: "Unauthorized" });
         }
 
         if (chat.booking.status !== "confirmed") {
-          return socket.emit("chat_error", {
-            chatId,
-            error: "Chat only available after booking is confirmed",
-          });
+          return ack?.({ error: "Chat not active" });
         }
 
         const message = await Message.create({
@@ -115,35 +95,16 @@ export default function initChatSocket(io) {
           "name profileImage"
         );
 
-        // Broadcast to everyone in the chat room
         io.to(chatId.toString()).emit("new_message", {
           chatId,
           message: populated,
         });
 
-        // Also, notify other users individually (for global badge)
-        chat.members
-          .filter((m) => m.toString() !== userId.toString())
-          .forEach((memberId) => {
-            io.to(`user:${memberId.toString()}`).emit("chat_notification", {
-              type: "NEW_MESSAGE",
-              chatId,
-              from: userId,
-              preview: populated.text,
-              createdAt: populated.createdAt,
-            });
-          });
+        ack?.({ success: true });
       } catch (err) {
         console.error("send_message error:", err);
-        socket.emit("chat_error", {
-          chatId,
-          error: "Failed to send message",
-        });
+        ack?.({ error: "Send failed" });
       }
-    });
-
-    socket.on("disconnect", () => {
-      // cleanup if needed
     });
   });
 }

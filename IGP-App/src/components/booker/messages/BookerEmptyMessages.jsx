@@ -1,8 +1,8 @@
 // src/components/booker/messages/BookerEmptyMessages.jsx
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../../constants/Colors';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Colors from "../../../constants/Colors";
 
 export default function BookerEmptyMessages() {
   return (
@@ -15,7 +15,10 @@ export default function BookerEmptyMessages() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 30
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 30,
   },
-  text: { marginTop: 10, color: '#888' },
+  text: { marginTop: 10, color: "#888" },
 });

@@ -185,7 +185,7 @@ export default function HomeScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => {
-                queryClient.prefetchInfiniteQuery(["gigs"]);
+                queryClient.prefetchInfiniteQuery({ queryKey: ["gigs"] });
                 router.push("/(tabs)/search");
               }}
             >

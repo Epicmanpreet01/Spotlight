@@ -1,82 +1,60 @@
-// app/(tabs)/messages.jsx
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, StyleSheet } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../src/api/api";
+import { useRouter } from "expo-router";
 import { useTheme } from "../../src/context/ThemeContext";
 
-// Performer message components
-import {
-  MessagesHeader,
-  ChatListItem,
-  EmptyMessages,
-} from "../../src/components/messages";
+/* ===================== HOOKS ===================== */
+import { useCurrentUser } from "../../src/hooks/queries/useAuth";
+import { useMyChatsQuery } from "../../src/hooks/queries/useChats";
 
-// Booker message components
-import {
-  BookerMessagesHeader,
-  BookerChatListItem,
-  BookerEmptyMessages,
-} from "../../src/components/booker/messages";
+/* ===================== COMPONENTS ===================== */
+/* Performer messages */
+import MessagesHeader from "../../src/components/messages/MessagesHeader";
+import ChatList from "../../src/components/messages/ChatList";
+import EmptyMessages from "../../src/components/messages/EmptyMessages";
+
+/* Booker messages */
+import BookerMessagesHeader from "../../src/components/booker/messages/BookerMessagesHeader";
+import BookerChatList from "../../src/components/booker/messages/BookerChatList";
+import BookerEmptyMessages from "../../src/components/booker/messages/BookerEmptyMessages";
 
 export default function MessagesScreen() {
   const { theme } = useTheme();
+  const router = useRouter();
 
-  /* ===== CURRENT USER ===== */
-  const { data: userResp } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      try {
-        return (await api.get("/auth/me")).data;
-      } catch {
-        return null;
-      }
-    },
-    retry: false,
-  });
-
-  const user = userResp?.data;
-  const role = user?.role;
-
-  /* ===== WHICH COMPONENT SET TO USE ===== */
+  /* ===================== CURRENT USER ===================== */
+  const { data: me } = useCurrentUser();
+  const role = me?.data?.role;
   const isBooker = role === "booker";
 
+  /* ===================== CHATS ===================== */
+  const { data: chatsResp, isLoading } = useMyChatsQuery();
+  const chats = chatsResp?.data || [];
+
+  /* ===================== ROLE BASED COMPONENTS ===================== */
   const Header = isBooker ? BookerMessagesHeader : MessagesHeader;
-  const Item = isBooker ? BookerChatListItem : ChatListItem;
+  const List = isBooker ? BookerChatList : ChatList;
   const Empty = isBooker ? BookerEmptyMessages : EmptyMessages;
 
-  /* ===== FETCH CHATS ===== */
-  const { data: chatsResp } = useQuery({
-    queryKey: ["myChats"],
-    queryFn: async () => (await api.get("/chat")).data,
-    retry: false,
-  });
-
-  const chats = chatsResp?.data || [];
+  /* ===================== OPEN CHAT ===================== */
+  const handleOpenChat = (chat) => {
+    router.push(`/chat/${chat._id}`);
+  };
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      {/* HEADER (Booker / Performer) */}
+      {/* HEADER */}
       <Header />
 
       {/* CONTENT */}
       <View style={styles.content}>
-        {/* No chats */}
-        {chats.length === 0 ? (
+        {isLoading ? null : chats.length === 0 ? (
           <Empty />
         ) : (
-          <View style={{ width: "100%", padding: 20 }}>
-            {chats.map((chat) => (
-              <Item
-                key={chat._id}
-                chat={chat}
-                onPress={() => console.log("Open chat", chat._id)}
-              />
-            ))}
-          </View>
+          <List chats={chats} onPressChat={handleOpenChat} />
         )}
       </View>
     </SafeAreaView>

@@ -1,8 +1,8 @@
 // src/components/messages/EmptyMessages.jsx
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../constants/Colors';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Colors from "../../../src/constants/Colors";
 
 export default function EmptyMessages() {
   return (
@@ -14,6 +14,11 @@ export default function EmptyMessages() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 30 },
-  text: { marginTop: 10, color: '#888' },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 30,
+  },
+  text: { marginTop: 10, color: "#888" },
 });
