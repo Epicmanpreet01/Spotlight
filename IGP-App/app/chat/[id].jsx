@@ -1,6 +1,6 @@
 // app/chat/[id].jsx
-import React, { useEffect, useRef, useState } from "react";
-import { View, FlatList, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../../src/context/ThemeContext";
@@ -21,19 +21,7 @@ export default function ChatScreen() {
   const { theme } = useTheme();
   const listRef = useRef(null);
 
-  const { socket, connected } = useSocket(); // ✅ already exists in your setup
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const onError = ({ error }) => {
-      console.warn("Chat error:", error);
-    };
-
-    socket.on("chat_error", onError);
-    return () => socket.off("chat_error", onError);
-  }, [socket]);
-
+  const { socket, connected } = useSocket();
   const [optimisticMessages, setOptimisticMessages] = useState([]);
 
   /* ===================== CURRENT USER ===================== */
@@ -54,25 +42,23 @@ export default function ChatScreen() {
 
   const chat = chatResp?.data;
 
+  /* ===================== SOCKET JOIN ===================== */
+  const { joined } = useChatSocket(chatId, setOptimisticMessages);
+
   /* ===================== CHAT MESSAGES ===================== */
   const { data: msgResp } = useQuery({
     queryKey: ["chatMessages", chatId],
     queryFn: async () => (await api.get(`/chat/${chatId}/messages`)).data,
-    enabled: !!chatId,
+    enabled: !!chatId && joined,
   });
 
   const serverMessages = msgResp?.data || [];
 
-  /* ===================== SOCKET (REALTIME) ===================== */
-  const { isJoinedRef } = useChatSocket(chatId, setOptimisticMessages);
-
   /* ===================== MERGED MESSAGES ===================== */
-  const messages = React.useMemo(() => {
+  const messages = useMemo(() => {
     const map = new Map();
-
     serverMessages.forEach((m) => map.set(m._id, m));
     optimisticMessages.forEach((m) => map.set(m._id, m));
-
     return Array.from(map.values()).sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
     );
@@ -90,23 +76,14 @@ export default function ChatScreen() {
 
   /* ===================== MARK READ ===================== */
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !joined) return;
     api.put(`/chat/${chatId}/read`).catch(() => {});
-  }, [chatId]);
+  }, [chatId, joined]);
 
   /* ===================== SEND MESSAGE ===================== */
   const handleSend = (text) => {
     if (!text.trim() || !currentUser) return;
-
-    if (!connected) {
-      console.warn("Socket not connected yet");
-      return;
-    }
-
-    if (!isJoinedRef.current) {
-      console.warn("Chat not joined yet");
-      return;
-    }
+    if (!connected || !joined) return;
 
     const tempId = `tmp-${Date.now()}`;
 
@@ -123,13 +100,11 @@ export default function ChatScreen() {
 
     socket.emit("send_message", { chatId, text }, (ack) => {
       if (!ack || ack.error) {
-        console.warn("Socket failed, REST fallback");
         api.post(`/chat/${chatId}/messages`, { text }).catch(() => {});
       }
     });
   };
 
-  /* ===================== SAFE EARLY RETURN ===================== */
   if (!chat || !currentUser) {
     return (
       <SafeAreaView
@@ -138,7 +113,6 @@ export default function ChatScreen() {
     );
   }
 
-  /* ===================== OTHER USER ===================== */
   const otherUser = chat.members.find((m) => m._id !== currentUser._id);
 
   return (
@@ -164,10 +138,7 @@ export default function ChatScreen() {
           )}
         />
 
-        <ChatInputBar
-          onSend={handleSend}
-          disabled={!connected || !isJoinedRef.current}
-        />
+        <ChatInputBar onSend={handleSend} disabled={!connected || !joined} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

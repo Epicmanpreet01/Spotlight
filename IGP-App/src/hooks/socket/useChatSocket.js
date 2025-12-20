@@ -1,32 +1,32 @@
 // src/hooks/socket/useChatSocket.js
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useSocket } from "../../context/SocketContext";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const useChatSocket = (chatId, setOptimisticMessages) => {
   const { socket } = useSocket();
   const qc = useQueryClient();
-  const joinedRef = useRef(false);
+  const [joined, setJoined] = useState(false);
 
   useEffect(() => {
     if (!socket || !chatId) return;
 
-    joinedRef.current = false;
+    setJoined(false);
 
     const joinChat = () => {
-      if (!socket.connected) return; // 🔴 CRITICAL GUARD
+      if (!socket.connected) return;
 
       socket.emit("join_chat", { chatId }, (ack) => {
         if (ack?.success) {
-          joinedRef.current = true;
           console.log("✅ JOINED CHAT");
+          setJoined(true);
         } else {
           console.warn("❌ JOIN FAILED:", ack?.error);
+          setJoined(false);
         }
       });
     };
 
-    // ✅ join ONLY after connection
     if (socket.connected) {
       joinChat();
     } else {
@@ -48,10 +48,10 @@ export const useChatSocket = (chatId, setOptimisticMessages) => {
     socket.on("new_message", onNewMessage);
 
     return () => {
-      joinedRef.current = false;
       socket.off("new_message", onNewMessage);
+      setJoined(false);
     };
-  }, [chatId, socket]); // 🔥 socket MUST be in deps
+  }, [chatId, socket]);
 
-  return { isJoinedRef: joinedRef };
+  return { joined };
 };
