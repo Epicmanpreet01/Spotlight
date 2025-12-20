@@ -185,7 +185,6 @@ export const me = async (req, res) => {
   const { user } = req;
 
   try {
-    /* ===================== BASE USER ===================== */
     const me = await User.findById(user._id).select("-password");
 
     if (!me) {
@@ -197,7 +196,6 @@ export const me = async (req, res) => {
 
     let profile = null;
 
-    /* ===================== PERFORMER ===================== */
     if (me.role === "performer") {
       profile = await PerformerProfile.findOne({ user: me._id })
         .populate({
@@ -214,7 +212,6 @@ export const me = async (req, res) => {
         });
     }
 
-    /* ===================== BOOKER ===================== */
     if (me.role === "booker") {
       profile = await BookerProfile.findOne({ user: me._id })
         .populate({

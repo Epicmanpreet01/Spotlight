@@ -24,17 +24,15 @@ import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 
 /* ===================== COMPONENTS ===================== */
 import ImageViewerModal from "../../src/components/profile/ImageViewerModal";
-import { IMAGES } from "../../src/constants/images.js";
+import { IMAGES } from "../../src/constants/images";
 
 const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = 360;
-
 const isVideo = (uri = "") => uri.endsWith(".mp4") || uri.includes("video");
 
 export default function PerformerProfileView() {
-  const { id } = useLocalSearchParams();
-
   const {
+    id,
     source = "direct",
     gigId,
     eventDate: rawEventDate,
@@ -42,7 +40,6 @@ export default function PerformerProfileView() {
   } = useLocalSearchParams();
 
   const parsedEventDate = rawEventDate ? JSON.parse(rawEventDate) : null;
-
   const isApplicantSource = source === "applicant";
 
   const router = useRouter();
@@ -50,63 +47,53 @@ export default function PerformerProfileView() {
 
   const scrollRef = useRef(null);
   const [index, setIndex] = useState(0);
-
-  /* 🔹 ADDED */
   const [previewUri, setPreviewUri] = useState(null);
   const [videoThumbs, setVideoThumbs] = useState({});
-
-  /* ===================== POPUP STATES ===================== */
   const [showHirePopup, setShowHirePopup] = useState(false);
   const [hireStep, setHireStep] = useState("choice");
 
-  /* ===================== DATA ===================== */
   const { data, isLoading } = usePerformerByIdQuery(id);
   const { data: meResp } = useCurrentUser();
-
   const isBooker = meResp?.data?.role === "booker";
   const { data: myGigs = [] } = useMyGigsQuery(isBooker);
-
   const { mutate: createBooking } = useCreateBookingMutation();
 
   const perf = data?.data;
 
-  /* ===================== GALLERY ===================== */
   const gallery =
     perf?.galleryImages?.length > 0
-      ? perf?.galleryImages
+      ? perf.galleryImages
       : [perf?.user?.profileImage];
 
-  /* 🔹 ADDED: VIDEO THUMBNAILS (SAFE, NON-CONDITIONAL) */
+  /* ===================== VIDEO THUMBS ===================== */
   useEffect(() => {
     let cancelled = false;
-
     const generateThumbs = async () => {
       const map = {};
-
       for (const uri of gallery) {
         if (uri && isVideo(uri) && !videoThumbs[uri]) {
           try {
             const { uri: thumb } = await VideoThumbnails.getThumbnailAsync(
               uri,
-              { time: 1000 }
+              {
+                time: 1000,
+              }
             );
             if (!cancelled) map[uri] = thumb;
           } catch {}
         }
       }
-
       if (!cancelled && Object.keys(map).length) {
         setVideoThumbs((prev) => ({ ...prev, ...map }));
       }
     };
-
     generateThumbs();
     return () => {
       cancelled = true;
     };
   }, [gallery]);
 
-  if (isLoading || !data?.data) {
+  if (isLoading || !perf) {
     return (
       <View style={styles.loading}>
         <Text style={{ color: theme.colors.textSecondary }}>Loading…</Text>
@@ -114,26 +101,8 @@ export default function PerformerProfileView() {
     );
   }
 
-  const goLeft = () => {
-    if (index > 0) {
-      const next = index - 1;
-      setIndex(next);
-      scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    }
-  };
-
-  const goRight = () => {
-    if (index < gallery.length - 1) {
-      const next = index + 1;
-      setIndex(next);
-      scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    }
-  };
-
-  /* ===================== HIRE ACTION ===================== */
   const hirePerformerForEvent = (gig) => {
     if (!gig) return;
-
     createBooking({
       performerId: perf.user._id,
       gigId: gig._id,
@@ -141,7 +110,6 @@ export default function PerformerProfileView() {
       totalPrice: gig.budget,
       source: "direct",
     });
-
     setShowHirePopup(false);
     setHireStep("choice");
   };
@@ -149,7 +117,11 @@ export default function PerformerProfileView() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* ================= GALLERY ================= */}
-      <View>
+      <View
+        style={{
+          overflow: "hidden",
+        }}
+      >
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -160,9 +132,7 @@ export default function PerformerProfileView() {
           }
         >
           {gallery.map((media, i) => {
-            const uri =
-              typeof media === "string" && media.length > 0 ? media : null;
-
+            const uri = typeof media === "string" ? media : null;
             const thumb = uri && isVideo(uri) ? videoThumbs[uri] : uri;
 
             return (
@@ -175,8 +145,6 @@ export default function PerformerProfileView() {
                   source={thumb ? { uri: thumb } : IMAGES.NO_IMAGE}
                   style={styles.banner}
                 />
-
-                {/* 🔹 VIDEO OVERLAY */}
                 {uri && isVideo(uri) && (
                   <View style={styles.playOverlay}>
                     <Ionicons
@@ -199,27 +167,11 @@ export default function PerformerProfileView() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
         </SafeAreaView>
-
-        {index > 0 && (
-          <TouchableOpacity
-            style={[styles.arrow, styles.left]}
-            onPress={goLeft}
-          >
-            <Ionicons name="chevron-back" size={28} color="#fff" />
-          </TouchableOpacity>
-        )}
-        {index < gallery.length - 1 && (
-          <TouchableOpacity
-            style={[styles.arrow, styles.right]}
-            onPress={goRight}
-          >
-            <Ionicons name="chevron-forward" size={28} color="#fff" />
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* ================= CONTENT ================= */}
       <ScrollView
+        style={{ marginTop: -32 }}
         contentContainerStyle={[
           styles.content,
           { backgroundColor: theme.colors.card },
@@ -229,33 +181,42 @@ export default function PerformerProfileView() {
           {perf.user?.name}
         </Text>
 
-        <View style={styles.row}>
-          <Ionicons
-            name="mic-outline"
-            size={18}
-            color={theme.colors.textSecondary}
-          />
-          <Text style={[styles.rowText, { color: theme.colors.textSecondary }]}>
+        <View style={[styles.badge, { backgroundColor: theme.colors.inputBg }]}>
+          <Text style={[styles.badgeText, { color: theme.colors.primary }]}>
             {perf.category}
           </Text>
         </View>
 
-        <View style={styles.row}>
-          <Ionicons
-            name="location-outline"
-            size={18}
-            color={theme.colors.textSecondary}
-          />
-          <Text style={[styles.rowText, { color: theme.colors.textSecondary }]}>
-            {perf.user?.city || "Location not set"}
-          </Text>
-        </View>
+        <View
+          style={[
+            styles.infoCard,
+            {
+              backgroundColor: theme.colors.inputBg,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View style={styles.infoRow}>
+            <Ionicons
+              name="location-outline"
+              size={18}
+              color={theme.colors.primary}
+            />
+            <Text style={[styles.infoText, { color: theme.colors.text }]}>
+              {perf.user?.city || "Location not set"}
+            </Text>
+          </View>
 
-        <View style={styles.ratingRow}>
-          <Ionicons name="star" size={20} color="#FFC107" />
-          <Text style={[styles.ratingText, { color: theme.colors.text }]}>
-            {perf.averageRating} ({perf.reviewCount} reviews)
-          </Text>
+          <View
+            style={[styles.divider, { backgroundColor: theme.colors.border }]}
+          />
+
+          <View style={styles.infoRow}>
+            <Ionicons name="star" size={18} color={theme.colors.primary} />
+            <Text style={[styles.infoText, { color: theme.colors.text }]}>
+              {perf.averageRating} ({perf.reviewCount} reviews)
+            </Text>
+          </View>
         </View>
 
         <Text style={[styles.section, { color: theme.colors.text }]}>
@@ -275,7 +236,7 @@ export default function PerformerProfileView() {
               key={b._id}
               style={[styles.past, { color: theme.colors.textSecondary }]}
             >
-              • {b.gig?.title} – {b.gig?.location?.address}
+              • {b.gig?.title}
             </Text>
           ))
         ) : (
@@ -295,7 +256,12 @@ export default function PerformerProfileView() {
           },
         ]}
       >
-        <Text style={[styles.price, { color: "#00C853" }]}>
+        <Text
+          style={[
+            styles.price,
+            { color: theme.colors.success || theme.colors.primary },
+          ]}
+        >
           Starting ₹{perf.priceStartingAt}
         </Text>
 
@@ -305,26 +271,24 @@ export default function PerformerProfileView() {
             if (isApplicantSource && gigId && parsedEventDate) {
               Alert.alert(
                 "Confirm Hire",
-                "Are you sure you want to hire this performer for this event?\n\nThis will proceed with booking immediately.",
+                "Are you sure you want to hire this performer for this event?",
                 [
                   { text: "Cancel", style: "cancel" },
                   {
                     text: "Yes, Hire",
                     style: "destructive",
-                    onPress: () => {
+                    onPress: () =>
                       createBooking({
                         performerId: perf.user._id,
                         gigId,
                         eventDate: parsedEventDate,
                         totalPrice: Number(budget) || perf.priceStartingAt,
                         source: "applicant",
-                      });
-                    },
+                      }),
                   },
                 ]
               );
             } else {
-              // 🔹 EXISTING FLOW (UNCHANGED)
               setHireStep("choice");
               setShowHirePopup(true);
             }
@@ -334,14 +298,13 @@ export default function PerformerProfileView() {
         </TouchableOpacity>
       </View>
 
-      {/* ================= IMAGE / VIDEO VIEWER ================= */}
       <ImageViewerModal
         visible={!!previewUri}
         uri={previewUri}
         onClose={() => setPreviewUri(null)}
       />
 
-      {/* ================= HIRE POPUP (UNCHANGED) ================= */}
+      {/* ================= HIRE POPUP ================= */}
       <Modal visible={showHirePopup} transparent animationType="fade">
         <View style={styles.popupOverlay}>
           <View
@@ -374,7 +337,6 @@ export default function PerformerProfileView() {
                   ]}
                   onPress={() => setHireStep("selectEvent")}
                 >
-                  <Ionicons name="checkmark-circle" size={18} color="#fff" />
                   <Text style={styles.actionBtnFilledText}>
                     I already have an event
                   </Text>
@@ -390,11 +352,6 @@ export default function PerformerProfileView() {
                     router.push("/booker/create-event");
                   }}
                 >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={18}
-                    color={theme.colors.primary}
-                  />
                   <Text
                     style={[
                       styles.actionBtnOutlineText,
@@ -408,44 +365,38 @@ export default function PerformerProfileView() {
             )}
 
             {hireStep === "selectEvent" && (
-              <>
-                <Text
-                  style={[
-                    styles.popupSubtitle,
-                    { color: theme.colors.textSecondary },
-                  ]}
-                >
-                  Select one of your events:
-                </Text>
-
-                <View style={styles.dropdownBox}>
-                  {myGigs.length === 0 ? (
-                    <Text style={{ color: theme.colors.textSecondary }}>
-                      No events created.
-                    </Text>
-                  ) : (
-                    myGigs.map((gig) => (
-                      <TouchableOpacity
-                        key={gig._id}
-                        style={styles.dropdownItem}
-                        onPress={() => hirePerformerForEvent(gig)}
+              <View
+                style={[
+                  styles.dropdownBox,
+                  { borderColor: theme.colors.border },
+                ]}
+              >
+                {myGigs.length === 0 ? (
+                  <Text style={{ color: theme.colors.textSecondary }}>
+                    No events created yet.
+                  </Text>
+                ) : (
+                  myGigs.map((gig) => (
+                    <TouchableOpacity
+                      key={gig._id}
+                      style={[
+                        styles.dropdownItem,
+                        { borderBottomColor: theme.colors.border },
+                      ]}
+                      onPress={() => hirePerformerForEvent(gig)}
+                    >
+                      <Text
+                        style={{ fontWeight: "700", color: theme.colors.text }}
                       >
-                        <Text
-                          style={{
-                            color: theme.colors.text,
-                            fontWeight: "700",
-                          }}
-                        >
-                          {gig.title}
-                        </Text>
-                        <Text style={{ color: theme.colors.textSecondary }}>
-                          {gig.location?.address}
-                        </Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </View>
-              </>
+                        {gig.title}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSecondary }}>
+                        {gig.location?.address}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
             )}
 
             <TouchableOpacity
@@ -464,16 +415,13 @@ export default function PerformerProfileView() {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
+/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center" },
   banner: { width, height: IMAGE_HEIGHT, resizeMode: "cover" },
   playOverlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    inset: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.15)",
@@ -484,41 +432,43 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 22,
   },
-  arrow: {
-    position: "absolute",
-    top: IMAGE_HEIGHT / 2 - 20,
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
-  left: { left: 10 },
-  right: { right: 10 },
   content: {
     padding: 20,
-    paddingBottom: 120,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -20,
+    paddingBottom: 140,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
   name: { fontSize: 28, fontWeight: "800" },
-  row: { flexDirection: "row", alignItems: "center", marginTop: 14, gap: 8 },
-  rowText: { fontSize: 15 },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-    gap: 6,
+  badge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginTop: 10,
   },
-  ratingText: { fontWeight: "700", fontSize: 15 },
-  section: { marginTop: 28, fontSize: 20, fontWeight: "700" },
-  desc: { marginTop: 10, lineHeight: 22, fontSize: 15 },
-  past: { marginTop: 10, lineHeight: 20, fontSize: 14 },
+  badgeText: { fontWeight: "700" },
+  infoCard: {
+    marginTop: 18,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+  },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  infoText: { fontSize: 14, fontWeight: "600" },
+  divider: { height: 1, marginVertical: 10 },
+  section: { marginTop: 26, fontSize: 20, fontWeight: "700" },
+  desc: { marginTop: 8, fontSize: 15, lineHeight: 22 },
+  past: { marginTop: 6, fontSize: 14 },
   footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 18,
+    borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 18,
     alignItems: "center",
-    borderTopWidth: 1,
   },
   price: { fontSize: 20, fontWeight: "900" },
   hireBtn: { paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16 },
@@ -541,17 +491,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     lineHeight: 20,
-    paddingHorizontal: 10,
   },
   actionBtnFilled: {
     width: "100%",
     paddingVertical: 14,
     borderRadius: 12,
     marginTop: 20,
-    flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 8,
   },
   actionBtnFilledText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   actionBtnOutline: {
@@ -560,10 +506,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 14,
     borderWidth: 2,
-    flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 8,
   },
   actionBtnOutlineText: { fontWeight: "700", fontSize: 15 },
   dropdownBox: {
@@ -571,12 +514,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 10,
-    borderColor: "#555",
+    marginTop: 12,
   },
   dropdownItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
   },
   cancelBtn: { marginTop: 20, padding: 10 },
 });

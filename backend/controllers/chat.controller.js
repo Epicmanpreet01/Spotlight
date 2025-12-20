@@ -4,10 +4,6 @@ import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
 import { resetUnreadForUser, bumpUnreadCounts } from "../utils/chat.utils.js";
 
-/**
- * GET /api/chat
- * List all chats for current user (only confirmed bookings)
- */
 export const getMyChats = async (req, res) => {
   const { user } = req;
 
@@ -43,10 +39,6 @@ export const getMyChats = async (req, res) => {
   }
 };
 
-/**
- * GET /api/chat/:chatId
- * Get single chat details
- */
 export const getChatById = async (req, res) => {
   const { user } = req;
   const { chatId } = req.params;
@@ -91,10 +83,6 @@ export const getChatById = async (req, res) => {
   }
 };
 
-/**
- * GET /api/chat/:chatId/messages?page=&limit=
- * Paginated messages for a chat
- */
 export const getChatMessages = async (req, res) => {
   const { user } = req;
   const { chatId } = req.params;
@@ -158,10 +146,6 @@ export const getChatMessages = async (req, res) => {
   }
 };
 
-/**
- * POST /api/chat/:chatId/messages
- * Create a message (REST fallback, Socket does the same internally)
- */
 export const sendMessageRest = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -253,10 +237,6 @@ export const sendMessageRest = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/chat/:chatId/read
- * Mark messages as read in a chat for current user
- */
 export const markChatRead = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();

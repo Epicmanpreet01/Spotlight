@@ -26,7 +26,6 @@ export const updateUserProfile = async (req, res) => {
   try {
     let updateDoc = {};
 
-    // location and city
     if (
       (updateBody.location && !updateBody.city) ||
       (!updateBody.location && updateBody.city)

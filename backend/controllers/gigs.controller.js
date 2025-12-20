@@ -155,7 +155,6 @@ export const getGigById = async (req, res) => {
       return res.status(404).json({ success: false, error: "No gig found" });
     }
 
-    // 🔐 Booker can only view own gig
     if (
       user.role === "booker" &&
       gig.postedBy._id.toString() !== user._id.toString()
@@ -175,9 +174,6 @@ export const getGigById = async (req, res) => {
 
     const gigData = gig.toObject();
 
-    /* =====================================================
-       ENRICH APPLICANTS (BOOKER + OWNER ONLY)
-    ===================================================== */
     if (user.role === "booker") {
       const performerUserIds = gig.applicants
         .map((a) => a.performer?._id)
@@ -215,7 +211,6 @@ export const getGigById = async (req, res) => {
       }
     }
 
-    // ❌ Hide applicants from performers
     if (user.role === "performer") {
       delete gigData.applicants;
     }
@@ -341,7 +336,7 @@ export const createGig = async (req, res) => {
           postedBy: user._id,
           title,
           description,
-          previewImage: previewImageUrl, // 👈 save uploaded URL
+          previewImage: previewImageUrl,
           eventDate: { start, end },
           location: loc,
           budget,
@@ -441,10 +436,8 @@ export const updateGig = async (req, res) => {
       const oldImageUrl = gig.previewImage;
       const newUrl = await uploadToCloudinary(req.file, "gigs_preview");
 
-      // Update model first
       gig.previewImage = newUrl;
 
-      // Delete old image AFTER update succeeds (safe cleanup)
       if (oldImageUrl) {
         const publicId = getPublicIdFromUrl(oldImageUrl);
         if (publicId) {

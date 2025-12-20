@@ -67,7 +67,7 @@ export const getBookingById = async (req, res) => {
         error: "You are not authorized to view this booking",
       });
     }
-    // 🔐 Completion OTP handling
+
     let decryptedOtp = null;
 
     if (isBooker && booking.status === "confirmed" && booking.completionCode) {
@@ -82,7 +82,6 @@ export const getBookingById = async (req, res) => {
       }
     }
 
-    // 🔐 Hide sensitive fields for performer
     if (!isBooker) {
       booking.completionCode = null;
       delete booking.paymentStatus;
@@ -468,12 +467,10 @@ export const completeBooking = async (req, res) => {
     }
     const current = new Date();
     if (current < booking.eventDate.start) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          error: "Can not complete event before event start",
-        });
+      return res.status(401).json({
+        success: false,
+        error: "Can not complete event before event start",
+      });
     }
 
     if (!booking.completionCode) {
@@ -495,9 +492,8 @@ export const completeBooking = async (req, res) => {
       });
     }
 
-    // Complete booking (no payout)
     booking.status = "completed";
-    booking.paymentStatus = "released"; // simulate release
+    booking.paymentStatus = "released";
     await booking.save();
 
     await sendNotification(req.io, {
@@ -539,7 +535,6 @@ export const cancelBooking = async (req, res) => {
     if (!isBooker && !isPerformer)
       return res.status(403).json({ success: false, error: "Unauthorized" });
 
-    // Cancellation rule — disallow if confirmed (refund logic required)
     if (booking.status === "confirmed") {
       return res.status(400).json({
         success: false,

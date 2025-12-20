@@ -37,7 +37,6 @@ export const getPerformers = async (req, res) => {
 
     let mongoQuery = { ...filters };
 
-    /* ===================== NAME SEARCH ===================== */
     if (mongoQuery.name) {
       const matchingUsers = await User.find({ name: mongoQuery.name }).select(
         "_id"
@@ -55,12 +54,10 @@ export const getPerformers = async (req, res) => {
         ) && userProfile.city === DEFAULT_CITY
       );
 
-    /* ===================== GEO PRIORITY SEARCH ===================== */
     if (user && hasLocation) {
       const [lng, lat] = userProfile.location.coordinates;
       const radiusKm = Number(radius) || 100;
 
-      // 1️⃣ Nearby performers
       const nearbyUsers = await User.find({
         role: "performer",
         location: {
@@ -72,7 +69,6 @@ export const getPerformers = async (req, res) => {
 
       let performerIds = nearbyUsers.map((u) => u._id);
 
-      // 2️⃣ Add farther performers if fewer than MIN_RESULTS
       if (performerIds.length < MIN_RESULTS) {
         const extraUsers = await User.find({
           role: "performer",
@@ -91,7 +87,6 @@ export const getPerformers = async (req, res) => {
       }
     }
 
-    /* ===================== PAGINATION ===================== */
     const page = Number(pageRaw) || 1;
     const limit = Number(limitRaw) || 10;
     const skip = (page - 1) * limit;
@@ -147,7 +142,7 @@ export const getPerformerById = async (req, res) => {
       .populate("user", "name profileImage city")
       .populate({
         path: "bookings",
-        match: { status: "completed" }, // ✅ ONLY completed bookings
+        match: { status: "completed" },
         select: "eventDate totalPrice gig",
         populate: {
           path: "gig",
@@ -200,7 +195,6 @@ export const updatePerformerProfile = async (req, res) => {
   }
 
   try {
-    // process subCategory
     if (updateBody.subCategory) {
       if (typeof updateBody.subCategory === "string") {
         updateBody.subCategory = updateBody.subCategory
@@ -210,7 +204,6 @@ export const updatePerformerProfile = async (req, res) => {
       }
     }
 
-    // video link sanitization
     if (Array.isArray(updateBody.videoLinks)) {
       updateBody.videoLinks = updateBody.videoLinks
         .map((url) => sanitizeVideoLink(url))
@@ -292,14 +285,12 @@ export const addGalleryImages = async (req, res) => {
       });
     }
 
-    // Upload → Cloudinary
     const uploadedUrls = [];
     for (const file of req.files) {
       const url = await uploadToCloudinary(file);
       uploadedUrls.push(url);
     }
 
-    // update gallery
     profile.galleryImages = Array.from(
       new Set([...uploadedUrls, ...profile.galleryImages])
     );
