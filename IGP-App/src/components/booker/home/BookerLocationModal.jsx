@@ -24,18 +24,38 @@ export default function BookerLocationModal({
 }) {
   const { theme } = useTheme();
 
-  const [streetAddress, setStreetAddress] = useState(initialStreet);
-  const [cityState, setCityState] = useState(initialCity);
-  const [coordinates, setCoordinates] = useState(null);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [locationData, setLocationData] = useState(null);
+  const [suggestion, setSuggestion] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
 
+  /* ===================== INIT ===================== */
   useEffect(() => {
     if (visible) {
-      setStreetAddress(initialStreet || "");
-      setCityState(initialCity || "");
-      setCoordinates(null);
+      // If city already exists, show it in input
+      setAddressQuery(initialStreet || initialCity || "");
+      setLocationData(null);
+      setSuggestion(null);
     }
   }, [visible, initialStreet, initialCity]);
+
+  /* ===================== AUTOCOMPLETE ===================== */
+  useEffect(() => {
+    // 🔒 Only search when user is actively typing
+    if (!isTyping || !addressQuery || addressQuery.length < 2) {
+      setSuggestion(null);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      const results = await searchLocation(addressQuery);
+      setSuggestion(results?.[0] || null);
+      setIsTyping(false); // stop further auto-searches
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [addressQuery, isTyping]);
 
   /* ===================== AUTO DETECT ===================== */
   const handleDetect = async () => {
@@ -44,40 +64,38 @@ export default function BookerLocationModal({
       const result = await detectLocation();
       if (!result) return;
 
-      setStreetAddress(result.address || "");
-      setCityState(result.city || "");
-      setCoordinates(result.location.coordinates);
+      setAddressQuery(result.address || result.city || "");
+      setLocationData({
+        lat: result.location.coordinates[1],
+        lon: result.location.coordinates[0],
+        address: { city: result.city },
+      });
+      setSuggestion(null);
     } finally {
       setIsDetecting(false);
     }
   };
 
   /* ===================== SAVE ===================== */
-  const handleSave = async () => {
-    if (!cityState?.trim()) {
-      Alert.alert("Missing City", "Please enter your city");
+  const handleSave = () => {
+    if (!locationData) {
+      Alert.alert("Location required", "Please select a valid location");
       return;
     }
 
-    let finalCoords = coordinates;
-
-    // Manual entry → geocode
-    if (!finalCoords) {
-      const results = await searchLocation(`${streetAddress} ${cityState}`);
-
-      if (!results.length) {
-        Alert.alert("Error", "Unable to locate this address");
-        return;
-      }
-
-      finalCoords = [Number(results[0].lon), Number(results[0].lat)];
-    }
+    const city =
+      locationData.address?.city ||
+      locationData.address?.town ||
+      locationData.address?.village ||
+      locationData.address?.county ||
+      locationData.address?.state ||
+      "";
 
     onSave({
-      city: cityState.trim(),
+      city: city.trim(),
       location: {
         type: "Point",
-        coordinates: finalCoords,
+        coordinates: [Number(locationData.lon), Number(locationData.lat)],
       },
     });
   };
@@ -100,49 +118,55 @@ export default function BookerLocationModal({
                 Set your location
               </Text>
 
-              {/* STREET */}
+              {/* ADDRESS INPUT */}
               <Text
                 style={[styles.label, { color: theme.colors.textSecondary }]}
               >
-                Street / Address
+                Address
               </Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  { backgroundColor: theme.colors.inputBg },
-                ]}
-              >
-                <TextInput
-                  value={streetAddress}
-                  onChangeText={setStreetAddress}
-                  placeholder="House no, street, landmark"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  style={[styles.input, { color: theme.colors.text }]}
-                />
-              </View>
 
-              {/* CITY */}
-              <Text
-                style={[
-                  styles.label,
-                  { marginTop: 10, color: theme.colors.textSecondary },
-                ]}
-              >
-                City, State
-              </Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  { backgroundColor: theme.colors.inputBg },
-                ]}
-              >
-                <TextInput
-                  value={cityState}
-                  onChangeText={setCityState}
-                  placeholder="City, State"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  style={[styles.input, { color: theme.colors.text }]}
-                />
+              <View style={styles.inputWrapper}>
+                <View
+                  style={[
+                    styles.inputBox,
+                    { backgroundColor: theme.colors.inputBg },
+                  ]}
+                >
+                  <TextInput
+                    value={addressQuery}
+                    onChangeText={(text) => {
+                      setAddressQuery(text);
+                      setIsTyping(true);
+                      setLocationData(null);
+                    }}
+                    placeholder="Search address"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    style={[styles.input, { color: theme.colors.text }]}
+                  />
+                </View>
+
+                {/* 🔽 SINGLE RESULT FLOATING DROPDOWN */}
+                {suggestion && !isTyping && (
+                  <TouchableOpacity
+                    style={[
+                      styles.dropdown,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setAddressQuery(suggestion.display_name);
+                      setLocationData(suggestion);
+                      setSuggestion(null);
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.text }}>
+                      {suggestion.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* DETECT */}
@@ -192,6 +216,7 @@ export default function BookerLocationModal({
   );
 }
 
+/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -216,8 +241,23 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
   label: { fontSize: 12, marginBottom: 6 },
+  inputWrapper: { position: "relative", zIndex: 20 },
   inputBox: { borderWidth: 1, borderRadius: 10 },
   input: { padding: 12 },
+
+  /* FLOATING DROPDOWN */
+  dropdown: {
+    position: "absolute",
+    top: 52,
+    left: 0,
+    right: 0,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    zIndex: 999,
+    elevation: 10,
+  },
+
   detectBtn: {
     marginTop: 14,
     paddingVertical: 12,
@@ -235,9 +275,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   save: { flex: 1, padding: 12, borderRadius: 10 },
-  saveText: {
-    color: "#fff",
-    fontWeight: "700",
-    textAlign: "center",
-  },
+  saveText: { color: "#fff", fontWeight: "700", textAlign: "center" },
 });

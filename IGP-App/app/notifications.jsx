@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,25 +13,41 @@ import { useRouter } from "expo-router";
 
 import { useTheme } from "../src/context/ThemeContext";
 import { useNotifications } from "../src/hooks/queries/useNotifications";
+import {
+  useMarkAllNotificationsRead,
+  useDeleteAllNotifications,
+} from "../src/hooks/mutations/useNotificationMutations";
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const { theme } = useTheme();
 
   const { data: notifications = [] } = useNotifications();
+  const { mutate: markAllRead } = useMarkAllNotificationsRead();
+  const { mutate: deleteAll } = useDeleteAllNotifications();
+
+  /* ✅ MARK ALL AS READ ON OPEN */
+  useEffect(() => {
+    if (notifications.some((n) => !n.read)) {
+      markAllRead();
+    }
+  }, []);
 
   const renderItem = ({ item }) => (
     <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
       <View style={[styles.iconBox, { backgroundColor: theme.colors.inputBg }]}>
         <Ionicons name="notifications" size={22} color={theme.colors.primary} />
       </View>
+
       <View style={{ flex: 1 }}>
         <Text style={[styles.title, { color: theme.colors.text }]}>
           {item.title}
         </Text>
+
         <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
           {item.message}
         </Text>
+
         <Text style={[styles.time, { color: theme.colors.textSecondary }]}>
           {new Date(item.createdAt).toLocaleDateString()}
         </Text>
@@ -58,13 +75,39 @@ export default function NotificationsScreen() {
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
+      {/* HEADER */}
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
+
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
           Notifications
         </Text>
+
+        {/* 🗑 DELETE ALL */}
+        <TouchableOpacity
+          onPress={() =>
+            Alert.alert(
+              "Delete all notifications?",
+              "This action cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => deleteAll(),
+                },
+              ]
+            )
+          }
+        >
+          <Ionicons
+            name="trash-outline"
+            size={22}
+            color={theme.colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -78,6 +121,7 @@ export default function NotificationsScreen() {
   );
 }
 
+/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
@@ -86,8 +130,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
+    justifyContent: "space-between",
   },
-  headerTitle: { fontSize: 20, fontWeight: "700", marginLeft: 20 },
+
+  headerTitle: { fontSize: 20, fontWeight: "700" },
 
   card: {
     flexDirection: "row",
@@ -107,7 +153,6 @@ const styles = StyleSheet.create({
   message: { fontSize: 14, marginTop: 4 },
   time: { fontSize: 12, marginTop: 6 },
 
-  /* ===================== EMPTY STATE ===================== */
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
