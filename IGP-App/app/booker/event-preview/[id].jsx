@@ -18,6 +18,7 @@ import { useTheme } from "../../../src/context/ThemeContext";
 import { useGigByIdQuery } from "../../../src/hooks/queries/useGigs";
 import { useCreateBookingMutation } from "../../../src/hooks/mutations/useBookingMutations";
 import { useCloseGigMutation } from "../../../src/hooks/mutations/useGigMutation";
+import { IMAGES } from "../../../src/constants/images";
 
 export default function BookerEventPreview() {
   const { id } = useLocalSearchParams();
@@ -173,24 +174,92 @@ export default function BookerEventPreview() {
           </Text>
         ) : (
           applicants.map((a) => (
-            <View
+            <TouchableOpacity
               key={a.performer._id}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push({
+                  pathname: "/performer-profile/" + a.performer.profileId,
+                  params: {
+                    source: "applicant",
+                    gigId: event._id,
+                    eventDate: JSON.stringify(event.eventDate),
+                    budget: event.budget,
+                  },
+                })
+              }
               style={[
                 styles.performerCard,
-                { backgroundColor: theme.colors.card },
+                {
+                  backgroundColor: theme.colors.card,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 14,
+                },
               ]}
             >
-              <View>
+              {/* ================= PROFILE IMAGE ================= */}
+              <Image
+                source={
+                  a.performer.profileImage
+                    ? { uri: a.performer.profileImage }
+                    : IMAGES.NO_IMAGE
+                }
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
+                  backgroundColor: theme.colors.border,
+                }}
+              />
+
+              {/* ================= DETAILS ================= */}
+              <View style={{ flex: 1 }}>
                 <Text
-                  style={[styles.performerName, { color: theme.colors.text }]}
+                  style={[
+                    styles.performerName,
+                    { color: theme.colors.text, marginBottom: 2 },
+                  ]}
+                  numberOfLines={1}
                 >
                   {a.performer.name}
                 </Text>
-                <Text style={{ color: theme.colors.textSecondary }}>
+
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: 13,
+                  }}
+                  numberOfLines={1}
+                >
                   {a.performer.city}
                 </Text>
+
+                {a.performer.category && (
+                  <View
+                    style={{
+                      marginTop: 6,
+                      alignSelf: "flex-start",
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      backgroundColor: theme.colors.background,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: theme.colors.primary,
+                      }}
+                    >
+                      {a.performer.category}
+                    </Text>
+                  </View>
+                )}
               </View>
 
+              {/* ================= ACTION ================= */}
               <TouchableOpacity
                 disabled={hiringPerformerId === a.performer._id}
                 onPress={() => handleHire(a)}
@@ -210,7 +279,7 @@ export default function BookerEventPreview() {
                   <Text style={styles.hireText}>Hire</Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>

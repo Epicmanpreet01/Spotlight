@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +33,18 @@ const isVideo = (uri = "") => uri.endsWith(".mp4") || uri.includes("video");
 
 export default function PerformerProfileView() {
   const { id } = useLocalSearchParams();
+
+  const {
+    source = "direct",
+    gigId,
+    eventDate: rawEventDate,
+    budget,
+  } = useLocalSearchParams();
+
+  const parsedEventDate = rawEventDate ? JSON.parse(rawEventDate) : null;
+
+  const isApplicantSource = source === "applicant";
+
   const router = useRouter();
   const { theme } = useTheme();
 
@@ -289,8 +302,32 @@ export default function PerformerProfileView() {
         <TouchableOpacity
           style={[styles.hireBtn, { backgroundColor: theme.colors.primary }]}
           onPress={() => {
-            setHireStep("choice");
-            setShowHirePopup(true);
+            if (isApplicantSource && gigId && parsedEventDate) {
+              Alert.alert(
+                "Confirm Hire",
+                "Are you sure you want to hire this performer for this event?\n\nThis will proceed with booking immediately.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Yes, Hire",
+                    style: "destructive",
+                    onPress: () => {
+                      createBooking({
+                        performerId: perf.user._id,
+                        gigId,
+                        eventDate: parsedEventDate,
+                        totalPrice: Number(budget) || perf.priceStartingAt,
+                        source: "applicant",
+                      });
+                    },
+                  },
+                ]
+              );
+            } else {
+              // 🔹 EXISTING FLOW (UNCHANGED)
+              setHireStep("choice");
+              setShowHirePopup(true);
+            }
           }}
         >
           <Text style={styles.hireText}>Hire</Text>

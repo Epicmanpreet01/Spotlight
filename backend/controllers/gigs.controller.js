@@ -136,21 +136,24 @@ export const getGigById = async (req, res) => {
   const { user } = req;
   const { gigId } = req.params;
 
-  if (!user)
+  if (!user) {
     return res
       .status(401)
       .json({ success: false, error: "Unauthorized access" });
+  }
 
-  if (!mongoose.Types.ObjectId.isValid(gigId))
+  if (!mongoose.Types.ObjectId.isValid(gigId)) {
     return res.status(400).json({ success: false, error: "Invalid gig id" });
+  }
 
   try {
     const gig = await Gig.findById(gigId)
       .populate("postedBy", "name profileImage")
       .populate("applicants.performer", "name city profileImage");
 
-    if (!gig)
+    if (!gig) {
       return res.status(404).json({ success: false, error: "No gig found" });
+    }
 
     // 🔐 Booker can only view own gig
     if (
@@ -166,11 +169,51 @@ export const getGigById = async (req, res) => {
 
     if (user.role === "performer") {
       hasApplied = gig.applicants.some(
-        (a) => a.performer._id.toString() === user._id.toString()
+        (a) => a.performer?._id.toString() === user._id.toString()
       );
     }
 
     const gigData = gig.toObject();
+
+    /* =====================================================
+       ENRICH APPLICANTS (BOOKER + OWNER ONLY)
+    ===================================================== */
+    if (user.role === "booker") {
+      const performerUserIds = gig.applicants
+        .map((a) => a.performer?._id)
+        .filter(Boolean);
+
+      if (performerUserIds.length > 0) {
+        const profiles = await PerformerProfile.find({
+          user: { $in: performerUserIds },
+        }).select("_id user category galleryImages averageRating reviewCount");
+
+        const profileMap = new Map(
+          profiles.map((p) => [
+            p.user.toString(),
+            {
+              profileId: p._id,
+              category: p.category,
+              galleryImages: p.galleryImages,
+              averageRating: p.averageRating,
+              reviewCount: p.reviewCount,
+            },
+          ])
+        );
+
+        gigData.applicants = gigData.applicants.map((a) => {
+          const extra = profileMap.get(a.performer._id.toString());
+
+          return {
+            ...a,
+            performer: {
+              ...a.performer,
+              ...(extra || {}),
+            },
+          };
+        });
+      }
+    }
 
     // ❌ Hide applicants from performers
     if (user.role === "performer") {

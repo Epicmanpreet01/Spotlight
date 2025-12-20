@@ -22,6 +22,7 @@ export const useCreateGigMutation = () => {
 
       // Refresh booker's gigs
       queryClient.invalidateQueries(["myGigs"]);
+      queryClient.invalidateQueries(["gig"]);
       queryClient.invalidateQueries(["currentUser"]);
     },
 
