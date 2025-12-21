@@ -486,13 +486,13 @@ export const completeBooking = async (req, res) => {
         error: "Completion code is required",
       });
     }
-    const current = new Date();
-    if (current < booking.eventDate.start) {
-      return res.status(401).json({
-        success: false,
-        error: "Can not complete event before event start",
-      });
-    }
+    // const current = new Date();
+    // if (current < booking.eventDate.start) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     error: "Can not complete event before event start",
+    //   });
+    // }
 
     if (!booking.completionCode) {
       return res.status(400).json({

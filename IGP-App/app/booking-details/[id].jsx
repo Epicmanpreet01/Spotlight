@@ -14,11 +14,14 @@ import { useTheme } from "../../src/context/ThemeContext";
 
 /* 🔗 Hooks */
 import { useBookingById } from "../../src/hooks/queries/useBookings";
-import { useCurrentUser } from "../../src/hooks/queries/useAuth"; // ✅ ADD
+import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import {
   useConfirmBookingMutation,
   useCancelBookingMutation,
 } from "../../src/hooks/mutations/useBookingMutations";
+
+import ReviewForm from "../../src/components/booker/review/ReviewForm";
+import { useCreateReviewMutation } from "../../src/hooks/mutations/useReviewMutation";
 
 export default function BookingDetails() {
   const { id } = useLocalSearchParams();
@@ -35,6 +38,11 @@ export default function BookingDetails() {
 
   const { mutate: cancelBooking, isPending: cancelling } =
     useCancelBookingMutation(id);
+
+  const bookingId = booking?._id;
+
+  const { mutate: submitReview, isPending: reviewing } =
+    useCreateReviewMutation(bookingId);
 
   if (isLoading) {
     return (
@@ -58,6 +66,9 @@ export default function BookingDetails() {
 
   // ✅ CORRECT BOOKER CHECK
   const isBooker = booking.booker?._id === currentUser?.data?._id;
+
+  const canReview =
+    booking?.status === "completed" && isBooker && !booking?.review;
 
   // ✅ CANCEL RULE (matches backend)
   const canCancel =
@@ -221,6 +232,15 @@ export default function BookingDetails() {
             ₹{booking.totalPrice}
           </Text>
         </View>
+
+        {canReview && (
+          <ReviewForm
+            loading={reviewing}
+            onSubmit={({ rating, comment }) =>
+              submitReview({ rating, comment })
+            }
+          />
+        )}
       </ScrollView>
       {(booking.status === "accepted" || canCancel) && (
         <View style={styles.bottomActions}>
