@@ -11,12 +11,22 @@ const ChatSchema = new Schema(
       },
     ],
 
-    // one chat per confirmed booking
-    booking: {
-      type: Schema.Types.ObjectId,
-      ref: "Booking",
-      required: true,
-      unique: true,
+    /**
+     * Multiple confirmed bookings between same users
+     * One chat per (booker ↔ performer) relationship
+     */
+    bookings: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Booking",
+        required: true,
+      },
+    ],
+
+    activeBookingsCount: {
+      type: Number,
+      default: 0,
+      index: true,
     },
 
     lastMessage: {
@@ -24,13 +34,13 @@ const ChatSchema = new Schema(
       ref: "Message",
     },
 
-    // unread counts per user
     unreadCounts: [
       {
         user: { type: Schema.Types.ObjectId, ref: "User" },
         count: { type: Number, default: 0 },
       },
     ],
+
     isActive: {
       type: Boolean,
       default: true,
@@ -39,6 +49,11 @@ const ChatSchema = new Schema(
   },
   { timestamps: true }
 );
+
+/**
+ * Ensure only one chat per member pair
+ */
+ChatSchema.index({ members: 1 }, { unique: true });
 
 const Chat = model("Chat", ChatSchema);
 export default Chat;

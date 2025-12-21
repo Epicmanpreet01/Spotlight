@@ -49,40 +49,40 @@ export const setAuthToken = async (token) => {
   }
 })();
 
-api.interceptors.request.use((req) => {
-  console.log(
-    "\n📡 API REQUEST:",
-    req.method.toUpperCase(),
-    req.url,
-    "\nHeaders:",
-    req.headers,
-    "\nData:",
-    req.data
-  );
-  return req;
-});
+// api.interceptors.request.use((req) => {
+//   console.log(
+//     "\n📡 API REQUEST:",
+//     req.method.toUpperCase(),
+//     req.url,
+//     "\nHeaders:",
+//     req.headers,
+//     "\nData:",
+//     req.data
+//   );
+//   return req;
+// });
 
-api.interceptors.response.use(
-  (res) => {
-    console.log(
-      "\n✅ API RESPONSE:",
-      res.status,
-      res.config.url,
-      "\nData:",
-      res.data
-    );
-    return res;
-  },
-  (error) => {
-    console.log(
-      "\n❌ API ERROR:",
-      error.response?.status,
-      error.response?.config?.url,
-      "\nError Data:",
-      error.response?.data
-    );
-    return Promise.reject(error);
-  }
-);
+// api.interceptors.response.use(
+//   (res) => {
+//     console.log(
+//       "\n✅ API RESPONSE:",
+//       res.status,
+//       res.config.url,
+//       "\nData:",
+//       res.data
+//     );
+//     return res;
+//   },
+//   (error) => {
+//     console.log(
+//       "\n❌ API ERROR:",
+//       error.response?.status,
+//       error.response?.config?.url,
+//       "\nError Data:",
+//       error.response?.data
+//     );
+//     return Promise.reject(error);
+//   }
+// );
 
 export default api;

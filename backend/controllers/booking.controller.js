@@ -406,7 +406,27 @@ export const confirmBooking = async (req, res) => {
 
     await booking.save();
 
-    const chat = await ensureChatForBooking(booking, null);
+    let chat = await Chat.findOne({
+      members: { $all: [booking.booker, booking.performer] },
+      isActive: true,
+    });
+
+    if (!chat) {
+      chat = await Chat.create({
+        members: [booking.booker, booking.performer],
+        bookings: [booking._id],
+        unreadCounts: [
+          { user: booking.booker, count: 0 },
+          { user: booking.performer, count: 0 },
+        ],
+      });
+    } else {
+      await Chat.updateOne(
+        { _id: chat._id },
+        { $addToSet: { bookings: booking._id } }
+      );
+    }
+
     booking.chatId = chat._id;
     await booking.save();
 
@@ -497,10 +517,23 @@ export const completeBooking = async (req, res) => {
     booking.paymentStatus = "released";
     await booking.save();
 
-    await Chat.updateOne(
-      { booking: booking._id },
-      { $set: { isActive: false } }
-    );
+    const chat = await Chat.findOne({ bookings: booking._id });
+
+    if (chat) {
+      await Chat.updateOne(
+        { _id: chat._id },
+        { $pull: { bookings: booking._id } }
+      );
+
+      const remaining = await Booking.countDocuments({
+        _id: { $in: chat.bookings },
+        status: "confirmed",
+      });
+
+      if (remaining === 0) {
+        await Chat.updateOne({ _id: chat._id }, { $set: { isActive: false } });
+      }
+    }
 
     await sendNotification(req.io, {
       userId: booking.booker,

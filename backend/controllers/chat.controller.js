@@ -17,7 +17,7 @@ export const getMyChats = async (req, res) => {
         select: "name profileImage",
       })
       .populate({
-        path: "booking",
+        path: "bookings",
         select: "status eventDate performer booker",
       })
       .populate({
@@ -27,10 +27,10 @@ export const getMyChats = async (req, res) => {
       })
       .sort({ updatedAt: -1 });
 
-    // ✅ only confirmed bookings
-    const confirmed = chats.filter((c) => c.booking?.status === "confirmed");
+    const confirmed = chats.filter((chat) =>
+      chat.bookings?.some((b) => b.status === "confirmed")
+    );
 
-    // ✅ normalize unreadCounts for frontend
     const normalized = confirmed.map((chat) => ({
       ...chat.toObject(),
       unreadCounts: chat.unreadCounts.map((u) => ({
@@ -64,7 +64,7 @@ export const getChatById = async (req, res) => {
   try {
     const chat = await Chat.findById(chatId)
       .populate("members", "name profileImage")
-      .populate("booking", "status eventDate performer booker");
+      .populate("bookings", "status eventDate performer booker");
 
     if (!chat) {
       return res.status(404).json({ success: false, error: "Chat not found" });
@@ -77,7 +77,7 @@ export const getChatById = async (req, res) => {
       });
     }
 
-    if (chat.booking?.status !== "confirmed") {
+    if (!chat.bookings?.some((b) => b.status === "confirmed")) {
       return res.status(400).json({
         success: false,
         error: "Chat only available after booking is confirmed",
@@ -110,7 +110,7 @@ export const getChatMessages = async (req, res) => {
 
   try {
     const chat = await Chat.findById(chatId).populate(
-      "booking",
+      "bookings",
       "status booker performer"
     );
 
@@ -125,7 +125,7 @@ export const getChatMessages = async (req, res) => {
       });
     }
 
-    if (chat.booking.status !== "confirmed") {
+    if (!chat.bookings?.some((b) => b.status === "confirmed")) {
       return res.status(400).json({
         success: false,
         error: "Chat only available after booking is confirmed",
@@ -184,7 +184,7 @@ export const sendMessageRest = async (req, res) => {
 
   try {
     const chat = await Chat.findById(chatId)
-      .populate("booking", "status")
+      .populate("bookings", "status")
       .session(session);
 
     if (!chat) {
@@ -201,8 +201,7 @@ export const sendMessageRest = async (req, res) => {
         error: "You are not a member of this chat",
       });
     }
-
-    if (chat.booking.status !== "confirmed") {
+    if (!chat.bookings?.some((b) => b.status === "confirmed")) {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({

@@ -1,4 +1,3 @@
-// socket/chat.socket.js
 import jwt from "jsonwebtoken";
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
@@ -19,36 +18,28 @@ export default function initChatSocket(io) {
   });
 
   io.on("connection", (socket) => {
-    const userId = socket.user._id;
+    const userId = socket.user._id.toString();
     socket.join(`user:${userId}`);
-
+    console.log("connection");
+    /* ===================== JOIN CHAT ===================== */
     socket.on("join_chat", async ({ chatId }, ack) => {
       try {
-        const chat = await Chat.findById(chatId).populate("booking");
-
+        const chat = await Chat.findById(chatId);
+        console.log("joined");
         if (!chat || !chat.isActive) {
-          return ack?.({ error: "Chat not found" });
+          ack?.({ error: "Chat not found or inactive" });
+          return;
         }
 
-        if (!chat.members.some((m) => m.toString() === userId.toString())) {
-          return ack?.({ error: "Unauthorized chat access" });
+        if (!chat.members.some((m) => m.toString() === userId)) {
+          ack?.({ error: "Unauthorized chat access" });
+          return;
         }
-
-        if (!chat.booking || chat.booking.status !== "confirmed") {
-          return ack?.({ error: "Chat not active" });
-        }
-
+        console.log("member");
         socket.join(chatId.toString());
 
-        console.log(
-          "✅ JOIN SUCCESS",
-          "chatId:",
-          chatId,
-          "user:",
-          userId,
-          "socket:",
-          socket.id
-        );
+        console.log("✅ JOINED CHAT", chatId, userId);
+
         ack?.({ success: true });
       } catch (err) {
         console.error("join_chat error:", err);
@@ -60,27 +51,24 @@ export default function initChatSocket(io) {
       socket.leave(chatId.toString());
     });
 
+    /* ===================== SEND MESSAGE ===================== */
     socket.on("send_message", async ({ chatId, text }, ack) => {
       try {
         if (!text?.trim()) {
-          return ack?.({ error: "Empty message" });
+          ack?.({ error: "Empty message" });
+          return;
         }
 
-        const chat = await Chat.findById(chatId).populate("booking", "status");
+        const chat = await Chat.findById(chatId);
 
-        if (
-          !chat ||
-          !chat.members.some((m) => m.toString() === userId.toString())
-        ) {
-          return ack?.({ error: "Unauthorized" });
+        if (!chat || !chat.isActive) {
+          ack?.({ error: "Chat inactive" });
+          return;
         }
 
-        if (!chat.isActive) {
-          return ack?.({ error: "Chat is no longer active" });
-        }
-
-        if (chat.booking.status !== "confirmed") {
-          return ack?.({ error: "Chat not active" });
+        if (!chat.members.some((m) => m.toString() === userId)) {
+          ack?.({ error: "Unauthorized" });
+          return;
         }
 
         const message = await Message.create({

@@ -1,29 +1,49 @@
-// utils/chat.utils.js
 import Chat from "../models/chat.model.js";
 
 /**
- * Ensure a chat exists for a confirmed booking.
- * Creates if missing and returns the Chat doc.
+ * Ensure a chat exists between booker & performer.
+ * Adds booking to chat.bookings[] if missing.
  */
 export async function ensureChatForBooking(booking, session) {
-  let chat = await Chat.findOne({ booking: booking._id }).session(session);
-  if (chat) return chat;
+  const members = [booking.booker, booking.performer];
 
-  chat = await Chat.create(
+  // 1️⃣ Find existing chat between same users
+  let chat = await Chat.findOne({
+    members: { $all: members },
+  }).session(session);
+
+  // 2️⃣ If chat exists, attach booking if not present
+  if (chat) {
+    const alreadyLinked = chat.bookings?.some(
+      (b) => b.toString() === booking._id.toString()
+    );
+
+    if (!alreadyLinked) {
+      chat.bookings.push(booking._id);
+      chat.isActive = true;
+      await chat.save({ session });
+    }
+
+    return chat;
+  }
+
+  // 3️⃣ Create new chat
+  const [created] = await Chat.create(
     [
       {
-        booking: booking._id,
-        members: [booking.booker, booking.performer],
+        members,
+        bookings: [booking._id],
         unreadCounts: [
           { user: booking.booker, count: 0 },
           { user: booking.performer, count: 0 },
         ],
+        isActive: true,
       },
     ],
     { session }
   );
 
-  return chat[0];
+  return created;
 }
 
 /**
@@ -31,9 +51,10 @@ export async function ensureChatForBooking(booking, session) {
  */
 export function bumpUnreadCounts(chatDoc, senderId) {
   const senderStr = senderId.toString();
+
   chatDoc.unreadCounts = chatDoc.unreadCounts.map((entry) => {
     if (entry.user.toString() === senderStr) {
-      return entry; // don't increment for sender
+      return entry;
     }
     return { ...entry.toObject(), count: (entry.count || 0) + 1 };
   });
@@ -44,6 +65,7 @@ export function bumpUnreadCounts(chatDoc, senderId) {
  */
 export function resetUnreadForUser(chatDoc, userId) {
   const userStr = userId.toString();
+
   chatDoc.unreadCounts = chatDoc.unreadCounts.map((entry) => {
     if (entry.user.toString() === userStr) {
       return { ...entry.toObject(), count: 0 };
