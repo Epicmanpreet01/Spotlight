@@ -48,6 +48,8 @@ export const getGigs = async (req, res) => {
       } catch (err) {
         return res.status(400).json({ success: false, error: err.message });
       }
+    } else {
+      filters["eventDate.start"] = { $gte: new Date() };
     }
 
     const hasLocation =
@@ -247,7 +249,7 @@ export const getMyGigs = async (req, res) => {
     const gigs = await Gig.find({
       postedBy: user._id,
       status: "open",
-      "eventDate.start": { $gt: now },
+      "eventDate.start": { $gte: now },
     });
 
     return res.status(200).json({
@@ -280,7 +282,7 @@ export const getAppliedGigs = async (req, res) => {
     const gigs = await Gig.find({
       "applicants.performer": user._id,
       status: "open",
-      "eventDate.start": { $gt: now },
+      "eventDate.start": { $gte: now },
     })
       .select("-applicants")
       .populate("postedBy", "name profileImage")

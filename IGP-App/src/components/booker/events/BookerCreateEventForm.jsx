@@ -34,7 +34,7 @@ export default function BookerCreateEventForm({ hireContext }) {
   const router = useRouter();
   const { theme } = useTheme();
 
-  const { mutate: createGig, isLoading } = useCreateGigMutation();
+  const { mutate: createGig, isPending } = useCreateGigMutation();
 
   /* ===================== FORM STATE ===================== */
   const [image, setImage] = useState(null);
@@ -42,6 +42,8 @@ export default function BookerCreateEventForm({ hireContext }) {
   const [category, setCategory] = useState("");
   const [desc, setDesc] = useState("");
   const [budget, setBudget] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   /* ===================== DATE ===================== */
   const [startDate, setStartDate] = useState(null);
@@ -73,6 +75,13 @@ export default function BookerCreateEventForm({ hireContext }) {
 
     return () => clearTimeout(timeout);
   }, [locationQuery]);
+
+  /* ===================== NAVIGATION AFTER SUBMIT ===================== */
+  useEffect(() => {
+    if (submitted) {
+      router.back();
+    }
+  }, [submitted, router]);
 
   const pickImageFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -120,6 +129,8 @@ export default function BookerCreateEventForm({ hireContext }) {
       return;
     }
 
+    setSubmitting(true);
+
     const formData = new FormData();
 
     formData.append("title", title);
@@ -149,7 +160,12 @@ export default function BookerCreateEventForm({ hireContext }) {
     }
 
     createGig(formData, {
-      onSuccess: () => router.back(),
+      onSuccess: () => {
+        setSubmitted(true);
+      },
+      onSettled: () => {
+        setSubmitting(false);
+      },
     });
   };
 
@@ -334,11 +350,11 @@ export default function BookerCreateEventForm({ hireContext }) {
         />
 
         <TouchableOpacity
-          style={[styles.createBtn, isLoading && { opacity: 0.7 }]}
+          style={[styles.createBtn, submitting && { opacity: 0.7 }]}
           onPress={handleCreate}
-          disabled={isLoading}
+          disabled={submitting}
         >
-          {isLoading ? (
+          {submitting ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <Text style={styles.createText}>Create Event</Text>

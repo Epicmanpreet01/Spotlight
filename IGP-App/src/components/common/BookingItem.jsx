@@ -40,7 +40,8 @@ export default function BookingItem({
       style={[styles.card, { borderColor: theme.colors.border }]}
       onPress={onPress}
     >
-      <View>
+      {/* 🔥 LEFT SECTION (CONSTRAINED) */}
+      <View style={styles.leftSection}>
         <Text style={[styles.title, { color: theme.colors.text }]}>
           {title}
         </Text>
@@ -48,17 +49,17 @@ export default function BookingItem({
         <Text
           numberOfLines={1}
           ellipsizeMode="tail"
-          style={{
-            color: theme.colors.textSecondary,
-            marginTop: 4,
-            maxWidth: "90%",
-          }}
+          style={[
+            styles.subtitle,
+            { color: theme.colors.textSecondary },
+          ]}
         >
           {dateText} • {formatAddress(address)}
         </Text>
       </View>
 
-      <View style={{ alignItems: "flex-end" }}>
+      {/* 🔥 RIGHT SECTION (FIXED WIDTH, NEVER OVERFLOWS) */}
+      <View style={styles.rightSection}>
         <Text style={{ color: statusColor, fontWeight: "700" }}>
           {status.toUpperCase()}
         </Text>
@@ -71,7 +72,7 @@ export default function BookingItem({
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
+/* ===================== STYLES (ONLY ADDITIONS) ===================== */
 const styles = StyleSheet.create({
   card: {
     paddingVertical: 14,
@@ -80,9 +81,24 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center", // 🔥 ADDED (vertical alignment)
   },
   title: {
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  /* 🔥 ADDED STYLES */
+  leftSection: {
+    flex: 1,          // takes remaining space
+    flexShrink: 1,    // can shrink
+    paddingRight: 12, // space from right column
+  },
+  subtitle: {
+    marginTop: 4,
+  },
+  rightSection: {
+    alignItems: "flex-end",
+    flexShrink: 0, // NEVER shrink → always visible
   },
 });

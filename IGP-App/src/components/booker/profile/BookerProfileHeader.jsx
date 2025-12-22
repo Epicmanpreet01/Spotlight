@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator, // 🔥 ADDED
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../context/ThemeContext";
@@ -29,6 +30,9 @@ export default function BookerProfileHeader({
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [profileImage, setProfileImage] = useState(user?.profileImage || null);
+
+  /* 🔥 ADD: LOCAL UI STATE (ONLY ADDITION) */
+  const [savingUI, setSavingUI] = useState(false);
 
   /* ===================== MUTATIONS ===================== */
   const updateProfileMutation = useUpdateUserProfileMutation();
@@ -67,6 +71,8 @@ export default function BookerProfileHeader({
   /* ===================== SAVE ===================== */
   const save = async () => {
     try {
+      setSavingUI(true); // 🔥 FORCE SPINNER ON
+
       // Update name
       if (name !== user?.name) {
         await updateProfileMutation.mutateAsync({ name });
@@ -82,6 +88,8 @@ export default function BookerProfileHeader({
       onUpdated();
     } catch {
       Alert.alert("Error", "Could not update profile.");
+    } finally {
+      setSavingUI(false); // 🔥 FORCE SPINNER OFF
     }
   };
 
@@ -203,7 +211,9 @@ export default function BookerProfileHeader({
 
               <TouchableOpacity onPress={pickImageFromLibrary}>
                 <View style={styles.btnPrimarySmall}>
-                  <Text style={styles.btnPrimarySmallText}>Choose Photo</Text>
+                  <Text style={styles.btnPrimarySmallText}>
+                    Choose Photo
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -213,6 +223,7 @@ export default function BookerProfileHeader({
               <TouchableOpacity
                 style={styles.btnGhost}
                 onPress={() => setEditOpen(false)}
+                disabled={saving || savingUI}
               >
                 <Text style={{ color: theme.colors.textSecondary }}>
                   Cancel
@@ -220,13 +231,20 @@ export default function BookerProfileHeader({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.btnPrimary}
+                style={[
+                  styles.btnPrimary,
+                  (saving || savingUI) && { opacity: 0.7 },
+                ]}
                 onPress={save}
-                disabled={saving}
+                disabled={saving || savingUI}
               >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  {saving ? "Saving..." : "Save"}
-                </Text>
+                {saving || savingUI ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    Save
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -305,7 +323,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   btnPrimarySmall: {
-    backgroundColor: "#1976D2",
+    backgroundColor: "#00BCD4",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
@@ -327,6 +345,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    backgroundColor: "#1976D2",
+    backgroundColor: "#00BCD4",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

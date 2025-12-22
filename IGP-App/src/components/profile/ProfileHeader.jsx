@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator, // 🔥 ADDED (only import)
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -27,6 +28,9 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [profileImage, setProfileImage] = useState(null);
+
+  /* 🔥 ADD: LOCAL UI STATE (ONLY ADDITION) */
+  const [savingUI, setSavingUI] = useState(false);
 
   /* ===================== MUTATIONS ===================== */
   const updateProfileMutation = useUpdateUserProfileMutation();
@@ -65,6 +69,8 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
   /* ===================== SAVE ===================== */
   const save = async () => {
     try {
+      setSavingUI(true); // 🔥 FORCE SPINNER ON
+
       // Update name (User)
       if (name !== user?.name) {
         await updateProfileMutation.mutateAsync({ name });
@@ -80,6 +86,8 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
       onEdit();
     } catch {
       Alert.alert("Error", "Failed to update profile.");
+    } finally {
+      setSavingUI(false); // 🔥 FORCE SPINNER OFF
     }
   };
 
@@ -251,6 +259,7 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
               <TouchableOpacity
                 style={styles.btnGhost}
                 onPress={() => setEditOpen(false)}
+                disabled={saving || savingUI}
               >
                 <Text style={{ color: theme.colors.textSecondary }}>
                   Cancel
@@ -258,13 +267,20 @@ export default function ProfileHeader({ user = {}, onEdit = () => {} }) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.btnPrimary}
+                style={[
+                  styles.btnPrimary,
+                  (saving || savingUI) && { opacity: 0.7 },
+                ]}
                 onPress={save}
-                disabled={saving}
+                disabled={saving || savingUI}
               >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  {saving ? "Saving..." : "Save"}
-                </Text>
+                {saving || savingUI ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    Save
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -340,6 +356,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 10,
     backgroundColor: "#FF5722",
+    alignItems: "center",
+    justifyContent: "center",
   },
   btnPrimarySmall: {
     paddingVertical: 10,

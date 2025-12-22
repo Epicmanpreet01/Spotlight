@@ -408,7 +408,6 @@ export const confirmBooking = async (req, res) => {
 
     let chat = await Chat.findOne({
       members: { $all: [booking.booker, booking.performer] },
-      isActive: true,
     });
 
     if (!chat) {
@@ -419,11 +418,15 @@ export const confirmBooking = async (req, res) => {
           { user: booking.booker, count: 0 },
           { user: booking.performer, count: 0 },
         ],
+        isActive: true,
       });
     } else {
       await Chat.updateOne(
         { _id: chat._id },
-        { $addToSet: { bookings: booking._id } }
+        {
+          $addToSet: { bookings: booking._id },
+          $set: { isActive: true },
+        }
       );
     }
 
@@ -486,13 +489,13 @@ export const completeBooking = async (req, res) => {
         error: "Completion code is required",
       });
     }
-    // const current = new Date();
-    // if (current < booking.eventDate.start) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     error: "Can not complete event before event start",
-    //   });
-    // }
+    const current = new Date();
+    if (current < booking.eventDate.start) {
+      return res.status(401).json({
+        success: false,
+        error: "Can not complete event before event start",
+      });
+    }
 
     if (!booking.completionCode) {
       return res.status(400).json({
@@ -526,7 +529,10 @@ export const completeBooking = async (req, res) => {
       );
 
       const remaining = await Booking.countDocuments({
-        _id: { $in: chat.bookings },
+        $or: [
+          { booker: booking.booker, performer: booking.performer },
+          { booker: booking.performer, performer: booking.booker },
+        ],
         status: "confirmed",
       });
 

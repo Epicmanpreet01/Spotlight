@@ -12,7 +12,7 @@ export const useCreateGigMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createGig,
+    mutationFn: (formData) => createGig(formData),
 
     onSuccess: () => {
       Toast.show({
@@ -111,7 +111,7 @@ export const useUpdateGigMutation = () => {
       Toast.show({
         type: "error",
         text1: "Failed to update event",
-        text2: error?.message || "Please try again",
+        text2: error?.response?.data?.error || "Something went wrong",
       });
     },
   });
@@ -135,7 +135,7 @@ export const useCloseGigMutation = (gigId) => {
       Toast.show({
         type: "error",
         text1: "Failed to update event",
-        text2: error?.message || "Please try again",
+        text2: error?.response?.data?.error || "Something went wrong",
       });
     },
   });

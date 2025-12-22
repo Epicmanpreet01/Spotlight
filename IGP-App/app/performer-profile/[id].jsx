@@ -9,6 +9,7 @@ import {
   Dimensions,
   Modal,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -51,6 +52,10 @@ export default function PerformerProfileView() {
   const [videoThumbs, setVideoThumbs] = useState({});
   const [showHirePopup, setShowHirePopup] = useState(false);
   const [hireStep, setHireStep] = useState("choice");
+
+  const [hireLoading, setHireLoading] = useState(false);
+
+  /* ===================== DATA FETCHING ===================== */
 
   const { data, isLoading } = usePerformerByIdQuery(id);
   const { data: meResp } = useCurrentUser();
@@ -101,17 +106,27 @@ export default function PerformerProfileView() {
     );
   }
 
-  const hirePerformerForEvent = (gig) => {
-    if (!gig) return;
-    createBooking({
-      performerId: perf.user._id,
-      gigId: gig._id,
-      eventDate: gig.eventDate,
-      totalPrice: gig.budget,
-      source: "direct",
-    });
-    setShowHirePopup(false);
-    setHireStep("choice");
+const hirePerformerForEvent = (gig) => {
+    if (!gig || hireLoading) return;
+
+    setHireLoading(true);
+
+    createBooking(
+      {
+        performerId: perf.user._id,
+        gigId: gig._id,
+        eventDate: gig.eventDate,
+        totalPrice: gig.budget,
+        source: "direct",
+      },
+      {
+        onSettled: () => {
+          setHireLoading(false);
+          setShowHirePopup(false);
+          setHireStep("choice");
+        },
+      }
+    );
   };
 
   return (
@@ -265,9 +280,16 @@ export default function PerformerProfileView() {
           Starting ₹{perf.priceStartingAt}
         </Text>
 
-        <TouchableOpacity
-          style={[styles.hireBtn, { backgroundColor: theme.colors.primary }]}
+<TouchableOpacity
+          style={[
+            styles.hireBtn,
+            { backgroundColor: theme.colors.primary },
+            hireLoading && { opacity: 0.7 },
+          ]}
+          disabled={hireLoading}
           onPress={() => {
+            if (hireLoading) return;
+
             if (isApplicantSource && gigId && parsedEventDate) {
               Alert.alert(
                 "Confirm Hire",
@@ -277,14 +299,22 @@ export default function PerformerProfileView() {
                   {
                     text: "Yes, Hire",
                     style: "destructive",
-                    onPress: () =>
-                      createBooking({
-                        performerId: perf.user._id,
-                        gigId,
-                        eventDate: parsedEventDate,
-                        totalPrice: Number(budget) || perf.priceStartingAt,
-                        source: "applicant",
-                      }),
+                    onPress: () => {
+                      setHireLoading(true);
+                      createBooking(
+                        {
+                          performerId: perf.user._id,
+                          gigId,
+                          eventDate: parsedEventDate,
+                          totalPrice:
+                            Number(budget) || perf.priceStartingAt,
+                          source: "applicant",
+                        },
+                        {
+                          onSettled: () => setHireLoading(false),
+                        }
+                      );
+                    },
                   },
                 ]
               );
@@ -294,7 +324,11 @@ export default function PerformerProfileView() {
             }
           }}
         >
-          <Text style={styles.hireText}>Hire</Text>
+          {hireLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.hireText}>Hire</Text>
+          )}
         </TouchableOpacity>
       </View>
 

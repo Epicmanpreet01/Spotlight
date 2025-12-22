@@ -32,9 +32,9 @@ export default function GigDetailsScreen() {
 
   const isPerformer = me?.data?.role === "performer";
 
-  const { mutate: applyToGig, isLoading: applying } = useApplyToGigMutation(id);
+  const { mutate: applyToGig, isPending: applying } = useApplyToGigMutation(id);
 
-  const { mutate: withdrawFromGig, isLoading: withdrawing } =
+  const { mutate: withdrawFromGig, isPending: withdrawing } =
     useWithdrawFromGigMutation(id);
 
   if (isLoading || !data?.data) {

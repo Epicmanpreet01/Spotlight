@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -37,6 +38,10 @@ export default function PortfolioCard({ profile = {} }) {
   const [bio, setBio] = useState("");
   const [price, setPrice] = useState("");
 
+  /* 🔥 ADDED UI STATES (ONLY ADDITION) */
+  const [uploadingUI, setUploadingUI] = useState(false);
+  const [savingUI, setSavingUI] = useState(false);
+
   const images = Array.isArray(profile?.galleryImages)
     ? profile.galleryImages
     : [];
@@ -60,26 +65,38 @@ export default function PortfolioCard({ profile = {} }) {
 
   /* ===================== IMAGE PICKER ===================== */
   const pickMedia = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission required", "Allow gallery access");
-      return;
-    }
+    try {
+      setUploadingUI(true);
 
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsMultipleSelection: true,
-      quality: 0.8,
-    });
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission required", "Allow gallery access");
+        return;
+      }
 
-    if (!res.canceled) {
-      await addImagesMutation.mutateAsync(res.assets);
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!res.canceled) {
+        await addImagesMutation.mutateAsync(res.assets);
+      }
+    } catch (err) {
+      /* ✅ PREVENT RED AXIOS ERROR */
+      console.log("Image upload failed (handled)");
+    } finally {
+      setUploadingUI(false);
     }
   };
 
   /* ===================== SAVE ===================== */
   const save = async () => {
     try {
+      setSavingUI(true);
+
       await updateProfileMutation.mutateAsync({
         bio,
         priceStartingAt: Number(price || 0),
@@ -89,6 +106,8 @@ export default function PortfolioCard({ profile = {} }) {
       setEditing(false);
     } catch {
       Alert.alert("Error", "Failed to save portfolio");
+    } finally {
+      setSavingUI(false);
     }
   };
 
@@ -193,10 +212,18 @@ export default function PortfolioCard({ profile = {} }) {
         renderItem={({ item }) =>
           item === "__ADD__" ? (
             <TouchableOpacity
-              style={styles.addSquare}
+              style={[
+                styles.addSquare,
+                uploadingUI && { opacity: 0.6 },
+              ]}
               onPress={() => setEditing(true)}
+              disabled={uploadingUI}
             >
-              <Ionicons name="add" size={24} color="#fff" />
+              {uploadingUI ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Ionicons name="add" size={24} color="#fff" />
+              )}
             </TouchableOpacity>
           ) : (
             <Pressable onPress={() => setPreviewUri(item)}>
@@ -233,7 +260,7 @@ export default function PortfolioCard({ profile = {} }) {
               ]}
             />
 
-            {/* 🔥 RESTORED STARTING PRICE */}
+            {/* STARTING PRICE */}
             <Text
               style={[
                 styles.label,
@@ -273,10 +300,18 @@ export default function PortfolioCard({ profile = {} }) {
               renderItem={({ item }) =>
                 item === "__ADD__" ? (
                   <TouchableOpacity
-                    style={styles.addSquare}
+                    style={[
+                      styles.addSquare,
+                      uploadingUI && { opacity: 0.6 },
+                    ]}
                     onPress={pickMedia}
+                    disabled={uploadingUI}
                   >
-                    <Ionicons name="add" size={24} color="#fff" />
+                    {uploadingUI ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Ionicons name="add" size={24} color="#fff" />
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.modalImageWrapper}>
@@ -310,9 +345,15 @@ export default function PortfolioCard({ profile = {} }) {
               <TouchableOpacity
                 style={styles.btnPrimary}
                 onPress={save}
-                disabled={saving}
+                disabled={saving || savingUI}
               >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
+                {savingUI ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    Save
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
