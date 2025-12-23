@@ -9,7 +9,7 @@ import { ensureChatForBooking } from "../utils/chat.utils.js";
 import { sendNotification } from "../services/notification.service.js";
 import { validateDateRange } from "../utils/preprocessing_validation.utils.js";
 import Gig from "../models/gigs.model.js";
-import { encryptOtp, decryptOtp } from "../utils/otpCrypto.utils.js";
+import { encryptOtp, decryptOtp } from "../utils/otpcrypto.utils.js";
 import Chat from "../models/chat.model.js";
 
 function generateOtp() {
