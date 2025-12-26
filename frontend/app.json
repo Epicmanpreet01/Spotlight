@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Spotlight",
-    "slug": "Spotlight",
+    "name": "India Got Performer",
+    "slug": "igpapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "spotlight",
+    "scheme": "igpapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
