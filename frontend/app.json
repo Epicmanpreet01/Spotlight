@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "IGP-App",
-    "slug": "IGP-App",
+    "name": "Spotlight",
+    "slug": "Spotlight",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "igpapp",
+    "scheme": "spotlight",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
