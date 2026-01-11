@@ -105,7 +105,7 @@ Event completed using **OTP verification**
 ```css
 Frontend (React Native / Expo)
 |
- ├── Authentication & Role Management
+├── Authentication & Role Management
 |
 ├── Booker Module
 |   ├── Event Creation
