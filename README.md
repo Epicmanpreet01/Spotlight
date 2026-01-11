@@ -102,7 +102,7 @@ Event completed using **OTP verification**
 ---
 
 ## Application Architecture
-
+```css
 Frontend (React Native / Expo)
 |
  ├── Authentication & Role Management
@@ -130,7 +130,7 @@ Frontend (React Native / Expo)
     ├── Image Uploads
     ├── Video Support
     └── Thumbnail Generation
-
+```
 ---
 
 ## Technology Stack
