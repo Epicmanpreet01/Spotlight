@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "India Got Performer",
-    "slug": "igpapp",
+    "slug": "IGP-App",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -45,12 +45,12 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "epicmanpreet02",
     "extra": {
       "router": {},
       "eas": {
         "projectId": "e175cf69-d5fe-492a-b73f-b9bad32fbaf6"
       }
-    },
-    "owner": "epicmanpreet02"
+    }
   }
 }
