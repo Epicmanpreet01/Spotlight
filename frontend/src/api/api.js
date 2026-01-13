@@ -8,7 +8,7 @@ console.log(API_BASE);
 
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 20000,
+  timeout: 60000,
 });
 
 export const getBackendErrorMessage = (error) => {
