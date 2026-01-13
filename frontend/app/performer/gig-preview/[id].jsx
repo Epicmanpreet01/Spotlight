@@ -12,7 +12,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../../src/context/ThemeContext";
 
-/* 🔗 Hooks */
 import { useGigByIdQuery } from "../../../src/hooks/queries/useGigs";
 import {
   useApplyToGigMutation,
@@ -145,7 +144,6 @@ export default function PerformerGigPreview() {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   header: {
     padding: 16,

@@ -12,7 +12,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
 
-/* 🔗 Hooks */
 import { useBookingById } from "../../src/hooks/queries/useBookings";
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import {
@@ -31,7 +30,7 @@ export default function BookingDetails() {
   const { data, isLoading } = useBookingById(id);
   const booking = data?.data;
 
-  const { data: currentUser } = useCurrentUser(); // ✅ ADD
+  const { data: currentUser } = useCurrentUser();
 
   const { mutate: confirmBooking, isPending: confirming } =
     useConfirmBookingMutation(id);
@@ -64,13 +63,11 @@ export default function BookingDetails() {
     booking.status
   );
 
-  // ✅ CORRECT BOOKER CHECK
   const isBooker = booking.booker?._id === currentUser?.data?._id;
 
   const canReview =
     booking?.status === "completed" && isBooker && !booking?.review;
 
-  // ✅ CANCEL RULE (matches backend)
   const canCancel =
     isBooker && ["pending", "accepted"].includes(booking.status);
 
@@ -276,7 +273,6 @@ export default function BookingDetails() {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 

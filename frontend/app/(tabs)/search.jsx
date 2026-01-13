@@ -4,12 +4,10 @@ import { View, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/context/ThemeContext";
 
-/* ===================== HOOKS ===================== */
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import { useGigsQuery } from "../../src/hooks/queries/useGigs";
 import { usePerformersQuery } from "../../src/hooks/queries/usePerformers";
 
-/* ===================== PERFORMER COMPONENTS ===================== */
 import ExploreHeader from "../../src/components/explore/ExploreHeader";
 import CategoryChips from "../../src/components/explore/CategoryChips";
 import GigCard from "../../src/components/explore/GigCard";
@@ -17,7 +15,6 @@ import ExploreEmptyState from "../../src/components/explore/ExploreEmptyState";
 import SearchBar from "../../src/components/explore/SearchBar";
 import FilterDropdown from "../../src/components/explore/FilterDropdown";
 
-/* ===================== BOOKER COMPONENTS ===================== */
 import BookerExploreHeader from "../../src/components/booker/explore/BookerExploreHeader";
 import BookerCategoryChips from "../../src/components/booker/explore/BookerCategoryChips";
 import BookerPerformerCard from "../../src/components/booker/explore/BookerPerformerCard";
@@ -27,7 +24,6 @@ import BookerFilterDropdown from "../../src/components/booker/explore/BookerFilt
 export default function SearchScreen() {
   const { theme } = useTheme();
 
-  /* ===================== UI STATE ===================== */
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [queryText, setQueryText] = useState("");
@@ -35,11 +31,9 @@ export default function SearchScreen() {
   const [budgetFilter, setBudgetFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState(null);
 
-  /* ===================== USER ===================== */
   const { data: me } = useCurrentUser();
   const role = me?.data?.role;
 
-  /* ===================== DATA ===================== */
   const {
     data: gigsResp,
     fetchNextPage: fetchMoreGigs,
@@ -60,7 +54,6 @@ export default function SearchScreen() {
     return performersResp?.pages?.flatMap((p) => p.data) || [];
   }, [performersResp]);
 
-  /* ===================== DATE HELPERS ===================== */
   const now = new Date();
 
   const startOfWeek = (() => {
@@ -79,7 +72,6 @@ export default function SearchScreen() {
 
   const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  /* ===================== PERFORMER FILTERING ===================== */
   const filteredGigs = useMemo(() => {
     const q = queryText.trim().toLowerCase();
 
@@ -112,7 +104,6 @@ export default function SearchScreen() {
     });
   }, [gigs, activeCategory, queryText, budgetFilter, dateFilter]);
 
-  /* ===================== BOOKER FILTERING ===================== */
   const filteredPerformers = useMemo(() => {
     const q = queryText.trim().toLowerCase();
 
@@ -136,7 +127,6 @@ export default function SearchScreen() {
     });
   }, [performers, activeCategory, queryText, budgetFilter]);
 
-  /* ===================== BOOKER VIEW ===================== */
   if (role === "booker") {
     return (
       <SafeAreaView
@@ -200,7 +190,6 @@ export default function SearchScreen() {
     );
   }
 
-  /* ===================== PERFORMER VIEW ===================== */
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -264,7 +253,6 @@ export default function SearchScreen() {
   );
 }
 
-/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchRow: {

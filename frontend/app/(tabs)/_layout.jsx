@@ -20,15 +20,12 @@ export default function TabLayout() {
     checkToken();
   }, []);
 
-  // Wait during async check (prevents UI flashing)
   if (checkingAuth) return null;
 
-  // User is not logged in → redirect to login page
   if (!hasToken) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
-  // Otherwise load the actual tab navigator
   return (
     <Tabs
       screenOptions={{

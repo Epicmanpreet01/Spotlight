@@ -330,8 +330,6 @@ export default function BookerEventPreview() {
   );
 }
 
-/* ================= STYLES (UNCHANGED DESIGN) ================= */
-
 const styles = StyleSheet.create({
   safe: { flex: 1 },
 

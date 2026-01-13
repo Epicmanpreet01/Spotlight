@@ -10,7 +10,6 @@ import {
 import { useTheme } from "../../src/context/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
 
-/* ===================== HOOKS ===================== */
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import { useMyBookingsQuery } from "../../src/hooks/queries/useBookings";
 import {
@@ -19,7 +18,6 @@ import {
 } from "../../src/hooks/queries/useGigs";
 import { useUpdatePerformerProfileMutation } from "../../src/hooks/mutations/usePerformerMutation";
 
-/* ===================== COMPONENTS ===================== */
 import {
   ProfileHeader,
   PortfolioCard,
@@ -39,14 +37,11 @@ export default function ProfileScreen() {
   const [showGigs, setShowGigs] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
 
-  /* ===================== USER ===================== */
   const { data: me } = useCurrentUser();
   const user = me?.data;
   const role = user?.role;
   const profile = me?.profile;
-  console.log("user", user);
-  console.log("PROFILE: ", profile);
-  /* ===================== DATA ===================== */
+
   const { data: bookingsResp } = useMyBookingsQuery(!!user);
   const bookings = bookingsResp?.data || [];
 
@@ -61,12 +56,10 @@ export default function ProfileScreen() {
   console.log(Array.isArray(myGigs), myGigs.length);
   const updateProfile = useUpdatePerformerProfileMutation();
 
-  /* ===================== LOGOUT ===================== */
   const handleLogout = () => {
     queryClient.clear();
   };
 
-  /* ===================== BOOKER PROFILE ===================== */
   if (role === "booker") {
     return (
       <SafeAreaView
@@ -85,7 +78,6 @@ export default function ProfileScreen() {
     );
   }
 
-  /* ===================== PERFORMER PROFILE ===================== */
   if (!user) {
     return (
       <SafeAreaView

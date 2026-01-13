@@ -454,7 +454,6 @@ function DateField({ label, value, onPress }) {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   imageBox: {
     height: 180,

@@ -17,11 +17,9 @@ export default function AuthLayout() {
 
   if (!checked) return null;
 
-  // Already logged in → go directly to tabs
   if (hasToken) {
     return <Redirect href="/(tabs)/home" />;
   }
 
-  // Otherwise show the auth stack
   return <Stack screenOptions={{ headerShown: false }} />;
 }

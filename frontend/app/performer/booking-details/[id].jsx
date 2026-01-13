@@ -14,7 +14,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../../src/context/ThemeContext";
 
-/* 🔗 Hooks */
 import { useBookingById } from "../../../src/hooks/queries/useBookings";
 import {
   useAcceptBookingMutation,
@@ -184,9 +183,6 @@ export default function PerformerBookingDetails() {
           </Text>
         </View>
 
-        {/* ====================== PENDING ACTIONS (NEW) ====================== */}
-
-        {/* ====================== OTP SECTION ====================== */}
         {!isPast && booking.status === "confirmed" && (
           <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>

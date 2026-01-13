@@ -1,18 +1,12 @@
 import Chat from "../models/chat.model.js";
 
-/**
- * Ensure a chat exists between booker & performer.
- * Adds booking to chat.bookings[] if missing.
- */
 export async function ensureChatForBooking(booking, session) {
   const members = [booking.booker, booking.performer];
 
-  // 1️⃣ Find existing chat between same users
   let chat = await Chat.findOne({
     members: { $all: members },
   }).session(session);
 
-  // 2️⃣ If chat exists, attach booking if not present
   if (chat) {
     const alreadyLinked = chat.bookings?.some(
       (b) => b.toString() === booking._id.toString()
@@ -27,7 +21,6 @@ export async function ensureChatForBooking(booking, session) {
     return chat;
   }
 
-  // 3️⃣ Create new chat
   const [created] = await Chat.create(
     [
       {
@@ -46,9 +39,6 @@ export async function ensureChatForBooking(booking, session) {
   return created;
 }
 
-/**
- * Increment unread counts for all members except sender.
- */
 export function bumpUnreadCounts(chatDoc, senderId) {
   const senderStr = senderId.toString();
 
@@ -60,9 +50,6 @@ export function bumpUnreadCounts(chatDoc, senderId) {
   });
 }
 
-/**
- * Reset unread count to 0 for a user.
- */
 export function resetUnreadForUser(chatDoc, userId) {
   const userStr = userId.toString();
 

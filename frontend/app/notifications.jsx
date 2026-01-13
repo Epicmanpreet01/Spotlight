@@ -26,7 +26,6 @@ export default function NotificationsScreen() {
   const { mutate: markAllRead } = useMarkAllNotificationsRead();
   const { mutate: deleteAll } = useDeleteAllNotifications();
 
-  /* ✅ MARK ALL AS READ ON OPEN */
   useEffect(() => {
     if (notifications.some((n) => !n.read)) {
       markAllRead();
@@ -121,7 +120,6 @@ export default function NotificationsScreen() {
   );
 }
 
-/* ===================== STYLES (UNCHANGED) ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
 

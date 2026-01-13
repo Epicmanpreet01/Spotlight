@@ -486,24 +486,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.inputBackground,
   },
   dropdownMenu: {
-    position: "absolute", // <-- NEW
-    top: "100%", // <-- NEW (right below selector)
+    position: "absolute",
+    top: "100%",
     left: 0,
     right: 0,
-    zIndex: 999, // <-- NEW (appear above everything)
+    zIndex: 999,
     backgroundColor: "#FFF",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: "hidden",
     elevation: 6,
-    marginTop: 4, // reduced gap
+    marginTop: 4,
   },
 
   dropdownItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8, // reduced vertical spacing
+    paddingVertical: 8,
     paddingHorizontal: 15,
   },
   iconBox: {

@@ -14,14 +14,12 @@ import { useRouter } from "expo-router";
 import { useTheme } from "../../src/context/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
 
-/* ===================== HOOKS ===================== */
 import { useCurrentUser } from "../../src/hooks/queries/useAuth";
 import { useGigsQuery } from "../../src/hooks/queries/useGigs";
 import { usePerformersQuery } from "../../src/hooks/queries/usePerformers";
 import { useNotifications } from "../../src/hooks/queries/useNotifications";
 import { useUpdateLocationMutation } from "../../src/hooks/mutations/useUpdateLocationMutation";
 
-/* ===================== COMPONENTS ===================== */
 import {
   NearbyGigsList,
   RecommendedGigsList,
@@ -43,17 +41,14 @@ export default function HomeScreen() {
 
   const [isLocationModalOpen, setLocationModalOpen] = useState(false);
 
-  /* ===================== USER ===================== */
   const { data: userResp, isLoading: isAuthLoading } = useCurrentUser();
   const user = userResp?.data ?? null;
   const profile = userResp?.profile ?? null;
   const role = user?.role ?? null;
 
-  /* ===================== NOTIFICATIONS ===================== */
   const { data: notifications = [] } = useNotifications();
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  /* ===================== PERFORMER GIGS ===================== */
   const {
     data: gigsResp,
     isLoading: gigsLoading,
@@ -66,7 +61,6 @@ export default function HomeScreen() {
   const MAX_NEARBY_GIGS = 7;
   const MAX_RECOMMENDED_GIGS = 7;
 
-  /* ===================== NEARBY ===================== */
   const nearbyGigs = allGigs
     .filter((g) => g?.eventDate?.start)
     .sort((a, b) => new Date(a.eventDate.start) - new Date(b.eventDate.start))
@@ -74,7 +68,6 @@ export default function HomeScreen() {
 
   const usedGigIds = new Set(nearbyGigs.map((g) => g._id));
 
-  /* ===================== RECOMMENDED (STRICT) ===================== */
   let recommendedGigs = allGigs.filter((g) => {
     if (usedGigIds.has(g._id)) return false;
 
@@ -87,7 +80,6 @@ export default function HomeScreen() {
     return false;
   });
 
-  /* ===================== BACKFILL (RELAXED) ===================== */
   if (recommendedGigs.length < MAX_RECOMMENDED_GIGS) {
     const backfill = allGigs.filter(
       (g) =>
@@ -101,7 +93,6 @@ export default function HomeScreen() {
     .sort((a, b) => (b.budget || 0) - (a.budget || 0))
     .slice(0, MAX_RECOMMENDED_GIGS);
 
-  /* ===================== BOOKER PERFORMERS ===================== */
   const {
     data: performersResp,
     isLoading: perfLoading,
@@ -112,19 +103,15 @@ export default function HomeScreen() {
   const MAX_NEARBY = 4;
   const MAX_RECOMMENDED = 6;
 
-  /* ===================== NEARBY ===================== */
   const nearbyPerformers = performers
     .filter((p) => p?.user)
     .slice(0, MAX_NEARBY);
 
   const usedPerformerIds = new Set(nearbyPerformers.map((p) => p._id));
-
-  /* ===================== RECOMMENDED (STRICT) ===================== */
   let recommendedPerformers = performers.filter(
     (p) => !usedPerformerIds.has(p._id) && (p.averageRating ?? 0) >= 4
   );
 
-  /* ===================== BACKFILL (RELAXED) ===================== */
   if (recommendedPerformers.length < MAX_RECOMMENDED) {
     const backfill = performers.filter(
       (p) =>
@@ -139,10 +126,8 @@ export default function HomeScreen() {
     .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
     .slice(0, MAX_RECOMMENDED);
 
-  /* ===================== LOCATION ===================== */
   const { mutate: updateLocation } = useUpdateLocationMutation();
 
-  /* ===================== AUTH GUARD ===================== */
   if (isAuthLoading || !role) {
     return (
       <SafeAreaView
@@ -160,7 +145,6 @@ export default function HomeScreen() {
     );
   }
 
-  /* ===================== PERFORMER ===================== */
   if (role === "performer") {
     return (
       <SafeAreaView
@@ -227,7 +211,6 @@ export default function HomeScreen() {
     );
   }
 
-  /* ===================== BOOKER ===================== */
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -297,7 +280,6 @@ export default function HomeScreen() {
   );
 }
 
-/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   sectionHeader: {
