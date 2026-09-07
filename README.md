@@ -247,7 +247,6 @@ Spotlight is designed as a real-world event booking platform with a strong focus
 It bridges the gap between event organizers and performers by providing a structured, transparent, and secure booking experience.
 
 ## Installation (Frontend)
-
 ```bash
 git clone <repository-url>
 cd spotlight
